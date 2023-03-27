@@ -31,10 +31,10 @@ endif()
 
 if (CONFIG_PM AND CONFIG_SOC_SERIES_IMX_RT10XX)
   zephyr_sources(power_rt10xx.c)
-  zephyr_code_relocate(power_rt10xx.c ITCM_TEXT)
+  zephyr_code_relocate(FILES power_rt10xx.c LOCATION ITCM_TEXT)
   if (CONFIG_SOC_MIMXRT1064)
     zephyr_sources(lpm_rt1064.c)
-    zephyr_code_relocate(lpm_rt1064.c ITCM_TEXT)
+    zephyr_code_relocate(FILES lpm_rt1064.c LOCATION ITCM_TEXT)
   endif()
 endif()
 
@@ -42,11 +42,9 @@ zephyr_compile_definitions(
   XIP_EXTERNAL_FLASH
 )
 
-if(CONFIG_ENTROPY_MCUX_CAAM)
-  zephyr_compile_definitions(
-    CACHE_MODE_WRITE_THROUGH
-  )
-endif()
+zephyr_compile_definitions_ifdef(CONFIG_ENTROPY_MCUX_CAAM CACHE_MODE_WRITE_THROUGH)
+
+zephyr_compile_definitions_ifdef(CONFIG_USB_DEVICE_DRIVER DATA_SECTION_IS_CACHEABLE=1)
 
 zephyr_linker_section_configure(
   SECTION .rom_start

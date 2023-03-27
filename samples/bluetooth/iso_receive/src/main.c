@@ -22,18 +22,20 @@
 
 #define PA_RETRY_COUNT 6
 
+#define BIS_ISO_CHAN_COUNT 2
+
 static bool         per_adv_found;
 static bool         per_adv_lost;
 static bt_addr_le_t per_addr;
 static uint8_t      per_sid;
-static uint16_t     per_interval_ms;
+static uint32_t     per_interval_us;
 
 static K_SEM_DEFINE(sem_per_adv, 0, 1);
 static K_SEM_DEFINE(sem_per_sync, 0, 1);
 static K_SEM_DEFINE(sem_per_sync_lost, 0, 1);
 static K_SEM_DEFINE(sem_per_big_info, 0, 1);
-static K_SEM_DEFINE(sem_big_sync, 0, 1);
-static K_SEM_DEFINE(sem_big_sync_lost, 0, 1);
+static K_SEM_DEFINE(sem_big_sync, 0, BIS_ISO_CHAN_COUNT);
+static K_SEM_DEFINE(sem_big_sync_lost, 0, BIS_ISO_CHAN_COUNT);
 
 /* The devicetree node identifier for the "led0" alias. */
 #define LED0_NODE DT_ALIAS(led0)
@@ -101,7 +103,7 @@ static void scan_recv(const struct bt_le_scan_recv_info *info,
 	bt_addr_le_to_str(info->addr, le_addr, sizeof(le_addr));
 	printk("[DEVICE]: %s, AD evt type %u, Tx Pwr: %i, RSSI %i %s "
 	       "C:%u S:%u D:%u SR:%u E:%u Prim: %s, Secn: %s, "
-	       "Interval: 0x%04x (%u ms), SID: %u\n",
+	       "Interval: 0x%04x (%u us), SID: %u\n",
 	       le_addr, info->adv_type, info->tx_power, info->rssi, name,
 	       (info->adv_props & BT_GAP_ADV_PROP_CONNECTABLE) != 0,
 	       (info->adv_props & BT_GAP_ADV_PROP_SCANNABLE) != 0,
@@ -109,13 +111,13 @@ static void scan_recv(const struct bt_le_scan_recv_info *info,
 	       (info->adv_props & BT_GAP_ADV_PROP_SCAN_RESPONSE) != 0,
 	       (info->adv_props & BT_GAP_ADV_PROP_EXT_ADV) != 0,
 	       phy2str(info->primary_phy), phy2str(info->secondary_phy),
-	       info->interval, BT_CONN_INTERVAL_TO_MS(info->interval), info->sid);
+	       info->interval, BT_CONN_INTERVAL_TO_US(info->interval), info->sid);
 
 	if (!per_adv_found && info->interval) {
 		per_adv_found = true;
 
 		per_sid = info->sid;
-		per_interval_ms = BT_CONN_INTERVAL_TO_MS(info->interval);
+		per_interval_us = BT_CONN_INTERVAL_TO_US(info->interval);
 		bt_addr_le_copy(&per_addr, info->addr);
 
 		k_sem_give(&sem_per_adv);
@@ -204,8 +206,6 @@ static struct bt_le_per_adv_sync_cb sync_callbacks = {
 	.biginfo = biginfo_cb,
 };
 
-#define BIS_ISO_CHAN_COUNT 2
-
 static void iso_recv(struct bt_iso_chan *chan, const struct bt_iso_recv_info *info,
 		struct net_buf *buf)
 {
@@ -247,19 +247,19 @@ static struct bt_iso_chan_ops iso_ops = {
 
 static struct bt_iso_chan_io_qos iso_rx_qos[BIS_ISO_CHAN_COUNT];
 
-static struct bt_iso_chan_qos bis_iso_qos[BIS_ISO_CHAN_COUNT] = {
+static struct bt_iso_chan_qos bis_iso_qos[] = {
 	{ .rx = &iso_rx_qos[0], },
 	{ .rx = &iso_rx_qos[1], },
 };
 
-static struct bt_iso_chan bis_iso_chan[BIS_ISO_CHAN_COUNT] = {
+static struct bt_iso_chan bis_iso_chan[] = {
 	{ .ops = &iso_ops,
 	  .qos = &bis_iso_qos[0], },
 	{ .ops = &iso_ops,
 	  .qos = &bis_iso_qos[1], },
 };
 
-static struct bt_iso_chan *bis[BIS_ISO_CHAN_COUNT] = {
+static struct bt_iso_chan *bis[] = {
 	&bis_iso_chan[0],
 	&bis_iso_chan[1],
 };
@@ -277,7 +277,7 @@ void main(void)
 	struct bt_le_per_adv_sync_param sync_create_param;
 	struct bt_le_per_adv_sync *sync;
 	struct bt_iso_big *big;
-	uint32_t sem_timeout;
+	uint32_t sem_timeout_us;
 	int err;
 
 	printk("Starting Synchronized Receiver Demo\n");
@@ -357,8 +357,10 @@ void main(void)
 		sync_create_param.options = 0;
 		sync_create_param.sid = per_sid;
 		sync_create_param.skip = 0;
-		sync_create_param.timeout = (per_interval_ms * PA_RETRY_COUNT) / 10;
-		sem_timeout = per_interval_ms * PA_RETRY_COUNT;
+		/* Multiple PA interval with retry count and convert to unit of 10 ms */
+		sync_create_param.timeout = (per_interval_us * PA_RETRY_COUNT) /
+						(10 * USEC_PER_MSEC);
+		sem_timeout_us = per_interval_us * PA_RETRY_COUNT;
 		err = bt_le_per_adv_sync_create(&sync_create_param, &sync);
 		if (err) {
 			printk("failed (err %d)\n", err);
@@ -367,7 +369,7 @@ void main(void)
 		printk("success.\n");
 
 		printk("Waiting for periodic sync...\n");
-		err = k_sem_take(&sem_per_sync, K_MSEC(sem_timeout));
+		err = k_sem_take(&sem_per_sync, K_USEC(sem_timeout_us));
 		if (err) {
 			printk("failed (err %d)\n", err);
 
@@ -382,7 +384,7 @@ void main(void)
 		printk("Periodic sync established.\n");
 
 		printk("Waiting for BIG info...\n");
-		err = k_sem_take(&sem_per_big_info, K_MSEC(sem_timeout));
+		err = k_sem_take(&sem_per_big_info, K_USEC(sem_timeout_us));
 		if (err) {
 			printk("failed (err %d)\n", err);
 
@@ -409,8 +411,14 @@ big_sync_create:
 		}
 		printk("success.\n");
 
-		printk("Waiting for BIG sync...\n");
-		err = k_sem_take(&sem_big_sync, TIMEOUT_SYNC_CREATE);
+		for (uint8_t chan = 0U; chan < BIS_ISO_CHAN_COUNT; chan++) {
+			printk("Waiting for BIG sync chan %u...\n", chan);
+			err = k_sem_take(&sem_big_sync, TIMEOUT_SYNC_CREATE);
+			if (err) {
+				break;
+			}
+			printk("BIG sync chan %u successful.\n", chan);
+		}
 		if (err) {
 			printk("failed (err %d)\n", err);
 
@@ -439,11 +447,14 @@ big_sync_create:
 		gpio_pin_set_dt(&led_gpio, (int)led_is_on);
 #endif /* HAS_LED */
 
-		printk("Waiting for BIG sync lost...\n");
-		err = k_sem_take(&sem_big_sync_lost, K_FOREVER);
-		if (err) {
-			printk("failed (err %d)\n", err);
-			return;
+		for (uint8_t chan = 0U; chan < BIS_ISO_CHAN_COUNT; chan++) {
+			printk("Waiting for BIG sync lost chan %u...\n", chan);
+			err = k_sem_take(&sem_big_sync_lost, K_FOREVER);
+			if (err) {
+				printk("failed (err %d)\n", err);
+				return;
+			}
+			printk("BIG sync lost chan %u.\n", chan);
 		}
 		printk("BIG sync lost.\n");
 

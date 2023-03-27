@@ -245,7 +245,7 @@ static struct net_pkt *create_pkt(struct net_fragment_data *data)
 
 	net_pkt_set_ip_hdr_len(pkt, NET_IPV6H_LEN);
 
-	buf = net_pkt_get_frag(pkt, K_FOREVER);
+	buf = net_pkt_get_frag(pkt, NET_IPV6UDPH_LEN, K_FOREVER);
 	if (!buf) {
 		net_pkt_unref(pkt);
 		return NULL;
@@ -285,7 +285,7 @@ static struct net_pkt *create_pkt(struct net_fragment_data *data)
 		net_pkt_frag_add(pkt, buf);
 
 		if (remaining > 0) {
-			buf = net_pkt_get_frag(pkt, K_FOREVER);
+			buf = net_pkt_get_frag(pkt, CONFIG_NET_BUF_DATA_SIZE, K_FOREVER);
 		}
 	}
 
@@ -493,7 +493,7 @@ static bool test_fragment(struct net_fragment_data *data)
 	while (buf) {
 		buf = ieee802154_6lo_fragment(&ctx, &frame_buf, data->iphc);
 
-		dfrag = net_pkt_get_frag(f_pkt, K_FOREVER);
+		dfrag = net_pkt_get_frag(f_pkt, frame_buf.len, K_FOREVER);
 		if (!dfrag) {
 			goto end;
 		}
@@ -524,7 +524,7 @@ reassemble:
 			goto end;
 		}
 
-		dfrag = net_pkt_get_frag(rxpkt, K_FOREVER);
+		dfrag = net_pkt_get_frag(rxpkt, buf->len, K_FOREVER);
 		if (!dfrag) {
 			goto end;
 		}
@@ -579,56 +579,56 @@ ZTEST(ieee802154_6lo_fragment, test_fragment_sam00_dam00)
 {
 	bool ret = test_fragment(&test_data_1);
 
-	zassert_true(ret, NULL);
+	zassert_true(ret);
 }
 
 ZTEST(ieee802154_6lo_fragment, test_fragment_sam01_dam01)
 {
 	bool ret = test_fragment(&test_data_2);
 
-	zassert_true(ret, NULL);
+	zassert_true(ret);
 }
 
 ZTEST(ieee802154_6lo_fragment, test_fragment_sam10_dam10)
 {
 	bool ret = test_fragment(&test_data_3);
 
-	zassert_true(ret, NULL);
+	zassert_true(ret);
 }
 
 ZTEST(ieee802154_6lo_fragment, test_fragment_sam00_m1_dam00)
 {
 	bool ret = test_fragment(&test_data_4);
 
-	zassert_true(ret, NULL);
+	zassert_true(ret);
 }
 
 ZTEST(ieee802154_6lo_fragment, test_fragment_sam01_m1_dam01)
 {
 	bool ret = test_fragment(&test_data_5);
 
-	zassert_true(ret, NULL);
+	zassert_true(ret);
 }
 
 ZTEST(ieee802154_6lo_fragment, test_fragment_sam10_m1_dam10)
 {
 	bool ret = test_fragment(&test_data_6);
 
-	zassert_true(ret, NULL);
+	zassert_true(ret);
 }
 
 ZTEST(ieee802154_6lo_fragment, test_fragment_ipv6_dispatch_small)
 {
 	bool ret = test_fragment(&test_data_7);
 
-	zassert_true(ret, NULL);
+	zassert_true(ret);
 }
 
 ZTEST(ieee802154_6lo_fragment, test_fragment_ipv6_dispatch_big)
 {
 	bool ret = test_fragment(&test_data_8);
 
-	zassert_true(ret, NULL);
+	zassert_true(ret);
 }
 
 

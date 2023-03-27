@@ -29,3 +29,4 @@ board_runner_args(jlink "--device=RP2040_M0_0")
 
 include(${ZEPHYR_BASE}/boards/common/openocd.board.cmake)
 include(${ZEPHYR_BASE}/boards/common/jlink.board.cmake)
+include(${ZEPHYR_BASE}/boards/common/blackmagicprobe.board.cmake)

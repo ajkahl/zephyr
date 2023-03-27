@@ -21,6 +21,8 @@
 #include "util/memq.h"
 #include "util/dbuf.h"
 
+#include "pdu_df.h"
+#include "lll/pdu_vendor.h"
 #include "pdu.h"
 #include "ll.h"
 #include "ll_settings.h"
@@ -78,7 +80,7 @@ void test_channel_map_update_central_loc(void)
 	ull_cp_state_set(&conn, ULL_CP_CONNECTED);
 
 	err = ull_cp_chan_map_update(&conn, chm);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS);
 
 	/* Prepare */
 	event_prepare(&conn);
@@ -157,7 +159,7 @@ void test_channel_map_update_central_invalid(void)
 	ull_cp_state_set(&conn, ULL_CP_CONNECTED);
 
 	err = ull_cp_chan_map_update(&conn, chm);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS);
 
 	/* Prepare */
 	event_prepare(&conn);
@@ -350,7 +352,7 @@ void test_channel_map_update_periph_loc(void)
 	ull_cp_state_set(&conn, ULL_CP_CONNECTED);
 
 	err = ull_cp_chan_map_update(&conn, chm);
-	zassert_equal(err, BT_HCI_ERR_CMD_DISALLOWED, NULL);
+	zassert_equal(err, BT_HCI_ERR_CMD_DISALLOWED);
 
 	zassert_equal(ctx_buffers_free(), test_ctx_buffers_cnt(),
 				  "Free CTX buffers %d", ctx_buffers_free());

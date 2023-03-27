@@ -136,6 +136,18 @@
 			label = "TEST_GPIO_1";
 			interrupts = <4 3>;
 			status = "okay";
+
+			test_gpio_hog_1 {
+				gpio-hog;
+				gpios = <0x0 0x00>, <0x1 0x10>;
+				output-high;
+			};
+
+			test_gpio_hog_2 {
+				gpio-hog;
+				gpios = <0x3 0x20>;
+				output-low;
+			};
 		};
 
 		test_gpio_2: gpio@abcd1234 {
@@ -149,6 +161,13 @@
 			interrupts = <5 2>;
 			label = "TEST_GPIO_2";
 			status = "okay";
+
+			test_gpio_hog_3 {
+				gpio-hog;
+				gpios = <0x4 0x30>;
+				input;
+				line-name = "TEST_GPIO_HOG_3";
+			};
 		};
 
 		test_gpio_3: gpio@1234 {
@@ -219,6 +238,27 @@
 			test-i2c-dev@12 {
 				compatible = "vnd,i2c-device";
 				reg = < 0x12 >;
+			};
+		};
+
+		test_i3c: i3c@88889999 {
+			#address-cells = < 3 >;
+			#size-cells = < 0 >;
+			compatible = "vnd,i3c";
+			reg = < 0x88889999 0x1000 >;
+			label = "TEST_I3C_CTLR";
+			status = "okay";
+
+			test-i3c-dev@420000ABCD12345678 {
+				compatible = "vnd,i3c-device";
+				label = "TEST_I3C_DEV_42";
+				reg = < 0x42 0xABCD 0x12345678 >;
+			};
+
+			test-i3c-i2c-dev@380000000000000050 {
+				compatible = "vnd,i3c-i2c-device";
+				label = "TEST_I3C_I2C_DEV_38";
+				reg = < 0x38 0x0 0x50 >;
 			};
 		};
 

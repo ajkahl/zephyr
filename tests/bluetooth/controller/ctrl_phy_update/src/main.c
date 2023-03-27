@@ -21,6 +21,8 @@
 #include "util/memq.h"
 #include "util/dbuf.h"
 
+#include "pdu_df.h"
+#include "lll/pdu_vendor.h"
 #include "pdu.h"
 #include "ll.h"
 #include "ll_settings.h"
@@ -141,7 +143,7 @@ void test_phy_update_central_loc(void)
 
 	/* Initiate an PHY Update Procedure */
 	err = ull_cp_phy_update(&conn, PHY_2M, PREFER_S8_CODING, PHY_2M, HOST_INITIATED);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS);
 
 	/* Prepare */
 	event_prepare(&conn);
@@ -245,7 +247,7 @@ void test_phy_update_central_loc_invalid(void)
 
 	/* Initiate an PHY Update Procedure */
 	err = ull_cp_phy_update(&conn, PHY_2M, PREFER_S8_CODING, PHY_2M, HOST_INITIATED);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS);
 
 	/* Prepare */
 	event_prepare(&conn);
@@ -296,7 +298,7 @@ void test_phy_update_central_loc_unsupp_feat(void)
 
 	/* Initiate an PHY Update Procedure */
 	err = ull_cp_phy_update(&conn, PHY_2M, PREFER_S8_CODING, PHY_2M, HOST_INITIATED);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS);
 
 	/* Prepare */
 	event_prepare(&conn);
@@ -443,7 +445,7 @@ void test_phy_update_periph_loc(void)
 
 	/* Initiate an PHY Update Procedure */
 	err = ull_cp_phy_update(&conn, PHY_2M, PREFER_S8_CODING, PHY_2M, HOST_INITIATED);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS);
 
 	/* Prepare */
 	event_prepare(&conn);
@@ -749,7 +751,7 @@ void test_phy_update_central_loc_collision(void)
 
 	/* Initiate an PHY Update Procedure */
 	err = ull_cp_phy_update(&conn, PHY_2M, PREFER_S8_CODING, PHY_2M, HOST_INITIATED);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS);
 
 	/*** ***/
 
@@ -926,7 +928,7 @@ void test_phy_update_central_rem_collision(void)
 
 	/* Initiate an PHY Update Procedure */
 	err = ull_cp_phy_update(&conn, PHY_2M, PREFER_S8_CODING, PHY_2M, HOST_INITIATED);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS);
 
 	/*** ***/
 
@@ -1093,7 +1095,7 @@ void test_phy_update_periph_loc_collision(void)
 
 	/* Initiate an PHY Update Procedure */
 	err = ull_cp_phy_update(&conn, PHY_2M, PREFER_S8_CODING, PHY_2M, HOST_INITIATED);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS);
 
 	/* Prepare */
 	event_prepare(&conn);
@@ -1209,7 +1211,7 @@ void test_phy_update_central_loc_no_act_change(void)
 
 	/* Initiate an PHY Update Procedure */
 	err = ull_cp_phy_update(&conn, PHY_1M, PREFER_S8_CODING, PHY_1M, HOST_INITIATED);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS);
 
 	/* Prepare */
 	event_prepare(&conn);
@@ -1357,7 +1359,7 @@ void test_phy_update_periph_loc_no_actual_change(void)
 
 	/* Initiate an PHY Update Procedure */
 	err = ull_cp_phy_update(&conn, PHY_1M, PREFER_S8_CODING, PHY_1M, HOST_INITIATED);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS);
 
 	/* Prepare */
 	event_prepare(&conn);

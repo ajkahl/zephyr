@@ -19,6 +19,8 @@
 #include "util/memq.h"
 #include "util/dbuf.h"
 
+#include "pdu_df.h"
+#include "lll/pdu_vendor.h"
 #include "pdu.h"
 #include "ll.h"
 #include "ll_settings.h"
@@ -111,7 +113,7 @@ void test_cis_terminate_loc(uint8_t role)
 
 	/* Initiate an CIS Terminate Procedure */
 	err = ull_cp_cis_terminate(&conn, &cis, local_cis_terminate_ind.error_code);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS);
 
 	/* Prepare */
 	event_prepare(&conn);

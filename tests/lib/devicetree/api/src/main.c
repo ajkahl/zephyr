@@ -37,6 +37,7 @@
 #define TEST_TEMP	DT_NODELABEL(test_temp_sensor)
 #define TEST_REG	DT_NODELABEL(test_reg)
 #define TEST_VENDOR	DT_NODELABEL(test_vendor)
+#define TEST_MODEL	DT_NODELABEL(test_vendor)
 #define TEST_ENUM_0	DT_NODELABEL(test_enum_0)
 
 #define TEST_I2C DT_NODELABEL(test_i2c)
@@ -49,8 +50,16 @@
 #define TEST_MUXED_I2C_DEV_1 DT_NODELABEL(test_muxed_i2c_dev_1)
 #define TEST_MUXED_I2C_DEV_2 DT_NODELABEL(test_muxed_i2c_dev_2)
 
+#define TEST_I3C DT_NODELABEL(test_i3c)
+#define TEST_I3C_DEV DT_PATH(test, i3c_88889999, test_i3c_dev_420000abcd12345678)
+#define TEST_I3C_BUS DT_BUS(TEST_I3C_DEV)
+
 #define TEST_GPIO_1 DT_NODELABEL(test_gpio_1)
 #define TEST_GPIO_2 DT_NODELABEL(test_gpio_2)
+
+#define TEST_GPIO_HOG_1 DT_PATH(test, gpio_deadbeef, test_gpio_hog_1)
+#define TEST_GPIO_HOG_2 DT_PATH(test, gpio_deadbeef, test_gpio_hog_2)
+#define TEST_GPIO_HOG_3 DT_PATH(test, gpio_abcd1234, test_gpio_hog_3)
 
 #define TEST_SPI DT_NODELABEL(test_spi)
 
@@ -298,11 +307,16 @@ ZTEST(devicetree_api, test_bus)
 	/* common prefixes of expected labels: */
 	const char *i2c_bus = "TEST_I2C_CTLR";
 	const char *i2c_dev = "TEST_I2C_DEV";
+	const char *i3c_bus = "TEST_I3C_CTLR";
+	const char *i3c_dev = "TEST_I3C_DEV";
+	const char *i3c_i2c_bus = "TEST_I3C_CTLR";
+	const char *i3c_i2c_dev = "TEST_I3C_I2C_DEV";
 	const char *spi_bus = "TEST_SPI_CTLR";
 	const char *spi_dev = "TEST_SPI_DEV";
 	const char *gpio = "TEST_GPIO_";
 	int pin, flags;
 
+	zassert_true(DT_SAME_NODE(TEST_I3C_BUS, TEST_I3C), "");
 	zassert_true(DT_SAME_NODE(TEST_I2C_BUS, TEST_I2C), "");
 	zassert_true(DT_SAME_NODE(TEST_SPI_BUS_0, TEST_SPI), "");
 	zassert_true(DT_SAME_NODE(TEST_SPI_BUS_1, TEST_SPI), "");
@@ -348,8 +362,10 @@ ZTEST(devicetree_api, test_bus)
 
 	zassert_equal(DT_ON_BUS(TEST_SPI_DEV_0, spi), 1, "");
 	zassert_equal(DT_ON_BUS(TEST_SPI_DEV_0, i2c), 0, "");
+	zassert_equal(DT_ON_BUS(TEST_SPI_DEV_0, i3c), 0, "");
 
 	zassert_equal(DT_ON_BUS(TEST_I2C_DEV, i2c), 1, "");
+	zassert_equal(DT_ON_BUS(TEST_I2C_DEV, i3c), 0, "");
 	zassert_equal(DT_ON_BUS(TEST_I2C_DEV, spi), 0, "");
 
 	zassert_true(!strcmp(DT_BUS_LABEL(TEST_I2C_DEV), "TEST_I2C_CTLR"), "");
@@ -360,9 +376,11 @@ ZTEST(devicetree_api, test_bus)
 
 	zassert_equal(DT_INST_ON_BUS(0, spi), 1, "");
 	zassert_equal(DT_INST_ON_BUS(0, i2c), 0, "");
+	zassert_equal(DT_INST_ON_BUS(0, i3c), 0, "");
 
 	zassert_equal(DT_ANY_INST_ON_BUS_STATUS_OKAY(spi), 1, "");
 	zassert_equal(DT_ANY_INST_ON_BUS_STATUS_OKAY(i2c), 0, "");
+	zassert_equal(DT_ANY_INST_ON_BUS_STATUS_OKAY(i3c), 0, "");
 
 	zassert_true(!strncmp(spi_dev, DT_INST_LABEL(0), strlen(spi_dev)), "");
 	zassert_true(!strncmp(spi_bus, DT_INST_BUS_LABEL(0), strlen(spi_bus)),
@@ -373,9 +391,11 @@ ZTEST(devicetree_api, test_bus)
 	zassert_equal(DT_NUM_INST_STATUS_OKAY(DT_DRV_COMPAT), 2, "");
 
 	zassert_equal(DT_INST_ON_BUS(0, i2c), 1, "");
+	zassert_equal(DT_INST_ON_BUS(0, i3c), 0, "");
 	zassert_equal(DT_INST_ON_BUS(0, spi), 0, "");
 
 	zassert_equal(DT_ANY_INST_ON_BUS_STATUS_OKAY(i2c), 1, "");
+	zassert_equal(DT_ANY_INST_ON_BUS_STATUS_OKAY(i3c), 0, "");
 	zassert_equal(DT_ANY_INST_ON_BUS_STATUS_OKAY(spi), 0, "");
 
 	zassert_true(!strncmp(i2c_dev, DT_INST_LABEL(0), strlen(i2c_dev)), "");
@@ -383,15 +403,48 @@ ZTEST(devicetree_api, test_bus)
 		     "");
 
 #undef DT_DRV_COMPAT
+#define DT_DRV_COMPAT vnd_i3c_device
+	zassert_equal(DT_NUM_INST_STATUS_OKAY(DT_DRV_COMPAT), 1, "");
+
+	zassert_equal(DT_INST_ON_BUS(0, i2c), 1, "");
+	zassert_equal(DT_INST_ON_BUS(0, i3c), 1, "");
+	zassert_equal(DT_INST_ON_BUS(0, spi), 0, "");
+
+	zassert_equal(DT_ANY_INST_ON_BUS_STATUS_OKAY(i2c), 1, "");
+	zassert_equal(DT_ANY_INST_ON_BUS_STATUS_OKAY(i3c), 1, "");
+	zassert_equal(DT_ANY_INST_ON_BUS_STATUS_OKAY(spi), 0, "");
+
+	zassert_true(!strncmp(i3c_dev, DT_INST_LABEL(0), strlen(i3c_dev)), "");
+	zassert_true(!strncmp(i3c_bus, DT_INST_BUS_LABEL(0), strlen(i3c_bus)),
+		     "");
+
+#undef DT_DRV_COMPAT
+#define DT_DRV_COMPAT vnd_i3c_i2c_device
+	zassert_equal(DT_NUM_INST_STATUS_OKAY(DT_DRV_COMPAT), 1, "");
+
+	zassert_equal(DT_INST_ON_BUS(0, i2c), 1, "");
+	zassert_equal(DT_INST_ON_BUS(0, i3c), 1, "");
+	zassert_equal(DT_INST_ON_BUS(0, spi), 0, "");
+
+	zassert_equal(DT_ANY_INST_ON_BUS_STATUS_OKAY(i2c), 1, "");
+	zassert_equal(DT_ANY_INST_ON_BUS_STATUS_OKAY(i3c), 1, "");
+	zassert_equal(DT_ANY_INST_ON_BUS_STATUS_OKAY(spi), 0, "");
+
+	zassert_true(!strncmp(i3c_i2c_dev, DT_INST_LABEL(0), strlen(i3c_i2c_dev)), "");
+	zassert_true(!strncmp(i3c_i2c_bus, DT_INST_BUS_LABEL(0), strlen(i3c_i2c_bus)),
+		     "");
+
+#undef DT_DRV_COMPAT
+
 	/*
 	 * Make sure the underlying DT_COMPAT_ON_BUS_INTERNAL used by
 	 * DT_ANY_INST_ON_BUS works without DT_DRV_COMPAT defined.
 	 */
-	zassert_equal(DT_COMPAT_ON_BUS_INTERNAL(vnd_spi_device, spi), 1, NULL);
-	zassert_equal(DT_COMPAT_ON_BUS_INTERNAL(vnd_spi_device, i2c), 0, NULL);
+	zassert_equal(DT_COMPAT_ON_BUS_INTERNAL(vnd_spi_device, spi), 1);
+	zassert_equal(DT_COMPAT_ON_BUS_INTERNAL(vnd_spi_device, i2c), 0);
 
-	zassert_equal(DT_COMPAT_ON_BUS_INTERNAL(vnd_i2c_device, i2c), 1, NULL);
-	zassert_equal(DT_COMPAT_ON_BUS_INTERNAL(vnd_i2c_device, spi), 0, NULL);
+	zassert_equal(DT_COMPAT_ON_BUS_INTERNAL(vnd_i2c_device, i2c), 1);
+	zassert_equal(DT_COMPAT_ON_BUS_INTERNAL(vnd_i2c_device, spi), 0);
 
 	zassert_equal(DT_COMPAT_ON_BUS_INTERNAL(vnd_gpio_expander, i2c), 1,
 		      NULL);
@@ -426,6 +479,34 @@ ZTEST(devicetree_api, test_vendor)
 	/* DT_NODE_VENDOR_OR */
 	zassert_true(!strcmp(DT_NODE_VENDOR_OR(TEST_VENDOR, NULL), VND_VENDOR), "");
 }
+
+#define VND_MODEL "model1"
+#define ZEP_MODEL "model2"
+
+ZTEST(devicetree_api, test_model)
+{
+	/* DT_NODE_MODEL_HAS_IDX */
+	zassert_true(DT_NODE_MODEL_HAS_IDX(TEST_MODEL, 0), "");
+	zassert_false(DT_NODE_MODEL_HAS_IDX(TEST_MODEL, 1), "");
+	zassert_true(DT_NODE_MODEL_HAS_IDX(TEST_MODEL, 2), "");
+	zassert_false(DT_NODE_MODEL_HAS_IDX(TEST_MODEL, 3), "");
+
+	/* DT_NODE_MODEL_BY_IDX */
+	zassert_true(!strcmp(DT_NODE_MODEL_BY_IDX(TEST_MODEL, 0), VND_MODEL), "");
+	zassert_true(!strcmp(DT_NODE_MODEL_BY_IDX(TEST_MODEL, 2), ZEP_MODEL), "");
+
+	/* DT_NODE_MODEL_BY_IDX_OR */
+	zassert_true(!strcmp(DT_NODE_MODEL_BY_IDX_OR(TEST_MODEL, 0, NULL), VND_MODEL), "");
+	zassert_is_null(DT_NODE_MODEL_BY_IDX_OR(TEST_MODEL, 1, NULL), "");
+	zassert_true(!strcmp(DT_NODE_MODEL_BY_IDX_OR(TEST_MODEL, 2, NULL), ZEP_MODEL), "");
+	zassert_is_null(DT_NODE_MODEL_BY_IDX_OR(TEST_MODEL, 3, NULL), "");
+
+	/* DT_NODE_MODEL_OR */
+	zassert_true(!strcmp(DT_NODE_MODEL_OR(TEST_MODEL, NULL), VND_MODEL), "");
+}
+
+#undef ZEP_MODEL
+#undef VND_MODEL
 
 #undef DT_DRV_COMPAT
 #define DT_DRV_COMPAT vnd_reg_holder
@@ -880,6 +961,23 @@ ZTEST(devicetree_api, test_gpio)
 
 	/* DT_GPIO_FLAGS */
 	zassert_equal(DT_GPIO_FLAGS(TEST_PH, gpios), 20, "");
+
+	/* DT_NUM_GPIO_HOGS */
+	zassert_equal(DT_NUM_GPIO_HOGS(TEST_GPIO_HOG_1), 2, "");
+	zassert_equal(DT_NUM_GPIO_HOGS(TEST_GPIO_HOG_2), 1, "");
+	zassert_equal(DT_NUM_GPIO_HOGS(TEST_GPIO_HOG_3), 1, "");
+
+	/* DT_GPIO_HOG_PIN_BY_IDX */
+	zassert_equal(DT_GPIO_HOG_PIN_BY_IDX(TEST_GPIO_HOG_1, 0), 0, "");
+	zassert_equal(DT_GPIO_HOG_PIN_BY_IDX(TEST_GPIO_HOG_1, 1), 1, "");
+	zassert_equal(DT_GPIO_HOG_PIN_BY_IDX(TEST_GPIO_HOG_2, 0), 3, "");
+	zassert_equal(DT_GPIO_HOG_PIN_BY_IDX(TEST_GPIO_HOG_3, 0), 4, "");
+
+	/* DT_GPIO_HOG_FLAGS_BY_IDX */
+	zassert_equal(DT_GPIO_HOG_FLAGS_BY_IDX(TEST_GPIO_HOG_1, 0), 0x00, "");
+	zassert_equal(DT_GPIO_HOG_FLAGS_BY_IDX(TEST_GPIO_HOG_1, 1), 0x10, "");
+	zassert_equal(DT_GPIO_HOG_FLAGS_BY_IDX(TEST_GPIO_HOG_2, 0), 0x20, "");
+	zassert_equal(DT_GPIO_HOG_FLAGS_BY_IDX(TEST_GPIO_HOG_3, 0), 0x30, "");
 
 	/* DT_INST */
 	zassert_equal(DT_NUM_INST_STATUS_OKAY(DT_DRV_COMPAT), 1, "");
@@ -1352,6 +1450,15 @@ ZTEST(devicetree_api, test_foreach_prop_elem)
 	zassert_equal(array[1], 4000, "");
 	zassert_equal(array[2], 6000, "");
 
+	int array_sep[] = {
+		DT_FOREACH_PROP_ELEM_SEP(TEST_ARRAYS, a, DT_PROP_BY_IDX, (,))
+	};
+
+	zassert_equal(ARRAY_SIZE(array_sep), 3, "");
+	zassert_equal(array_sep[0], 1000, "");
+	zassert_equal(array_sep[1], 2000, "");
+	zassert_equal(array_sep[2], 3000, "");
+
 #undef DT_DRV_COMPAT
 #define DT_DRV_COMPAT vnd_array_holder
 
@@ -1363,6 +1470,15 @@ ZTEST(devicetree_api, test_foreach_prop_elem)
 	zassert_equal(inst_array[0], array[0], "");
 	zassert_equal(inst_array[1], array[1], "");
 	zassert_equal(inst_array[2], array[2], "");
+
+	int inst_array_sep[] = {
+		DT_INST_FOREACH_PROP_ELEM_SEP(0, a, DT_PROP_BY_IDX, (,))
+	};
+
+	zassert_equal(ARRAY_SIZE(inst_array_sep), ARRAY_SIZE(array_sep), "");
+	zassert_equal(inst_array_sep[0], array_sep[0], "");
+	zassert_equal(inst_array_sep[1], array_sep[1], "");
+	zassert_equal(inst_array_sep[2], array_sep[2], "");
 #undef TIMES_TWO
 }
 
@@ -1380,6 +1496,19 @@ ZTEST(devicetree_api, test_foreach_prop_elem_varg)
 	zassert_equal(array[1], 4003, "");
 	zassert_equal(array[2], 6003, "");
 
+#define PROP_PLUS_ARG(node_id, prop, idx, arg) \
+	(DT_PROP_BY_IDX(node_id, prop, idx) + arg)
+
+	int array_sep[] = {
+		DT_FOREACH_PROP_ELEM_SEP_VARGS(TEST_ARRAYS, a, PROP_PLUS_ARG,
+					       (,), 3)
+	};
+
+	zassert_equal(ARRAY_SIZE(array_sep), 3, "");
+	zassert_equal(array_sep[0], 1003, "");
+	zassert_equal(array_sep[1], 2003, "");
+	zassert_equal(array_sep[2], 3003, "");
+
 #undef DT_DRV_COMPAT
 #define DT_DRV_COMPAT vnd_array_holder
 
@@ -1391,6 +1520,16 @@ ZTEST(devicetree_api, test_foreach_prop_elem_varg)
 	zassert_equal(inst_array[0], array[0], "");
 	zassert_equal(inst_array[1], array[1], "");
 	zassert_equal(inst_array[2], array[2], "");
+
+	int inst_array_sep[] = {
+		DT_INST_FOREACH_PROP_ELEM_SEP_VARGS(0, a, PROP_PLUS_ARG, (,),
+						    3)
+	};
+
+	zassert_equal(ARRAY_SIZE(inst_array_sep), ARRAY_SIZE(array_sep), "");
+	zassert_equal(inst_array_sep[0], array_sep[0], "");
+	zassert_equal(inst_array_sep[1], array_sep[1], "");
+	zassert_equal(inst_array_sep[2], array_sep[2], "");
 #undef TIMES_TWO
 }
 
@@ -1653,6 +1792,15 @@ ZTEST(devicetree_api, test_parent)
 	 */
 	zassert_true(DT_SAME_NODE(DT_CHILD(DT_PARENT(TEST_SPI_BUS_0), spi_33334444),
 				  TEST_SPI_BUS_0), "");
+}
+
+#undef DT_DRV_COMPAT
+#define DT_DRV_COMPAT vnd_i2c_mux_controller
+ZTEST(devicetree_api, test_gparent)
+{
+	zassert_true(DT_SAME_NODE(DT_GPARENT(TEST_I2C_MUX_CTLR_1), TEST_I2C), "");
+	zassert_true(DT_SAME_NODE(DT_INST_GPARENT(0), TEST_I2C), "");
+	zassert_true(DT_SAME_NODE(DT_INST_GPARENT(1), TEST_I2C), "");
 }
 
 #undef DT_DRV_COMPAT

@@ -48,9 +48,11 @@
 	defined(CONFIG_BOARD_BL654_SENSOR_BOARD) || \
 	defined(CONFIG_BOARD_DEGU_EVK) || \
 	defined(CONFIG_BOARD_ADAFRUIT_FEATHER_NRF52840)	|| \
+	defined(CONFIG_BOARD_ADAFRUIT_ITSYBITSY_NRF52840) || \
 	defined(CONFIG_BOARD_RUUVI_RUUVITAG) || \
 	defined(CONFIG_BOARD_BT510) || \
 	defined(CONFIG_BOARD_PINNACLE_100_DVK) || \
+	defined(CONFIG_BOARD_MG100) || \
 	defined(CONFIG_BOARD_ARDUINO_NANO_33_BLE) || \
 	defined(CONFIG_BOARD_ARDUINO_NANO_33_BLE_SENSE) || \
 	defined(CONFIG_BOARD_UBX_BMD300EVAL_NRF52832) || \
@@ -139,6 +141,15 @@
 #define ADC_ACQUISITION_TIME	ADC_ACQ_TIME_DEFAULT
 #define ADC_1ST_CHANNEL_ID	3
 
+#elif defined(CONFIG_BOARD_GD32A503V_EVAL)
+
+#define ADC_DEVICE_NODE		DT_INST(0, gd_gd32_adc)
+#define ADC_RESOLUTION		12
+#define ADC_GAIN		ADC_GAIN_1
+#define ADC_REFERENCE		ADC_REF_INTERNAL
+#define ADC_ACQUISITION_TIME	ADC_ACQ_TIME_DEFAULT
+#define ADC_1ST_CHANNEL_ID	1
+
 #elif defined(CONFIG_BOARD_HEXIWEAR_K64)
 
 #define ADC_DEVICE_NODE		DT_INST(0, nxp_kinetis_adc16)
@@ -190,14 +201,12 @@
 	defined(CONFIG_BOARD_NUCLEO_F103RB) || \
 	defined(CONFIG_BOARD_NUCLEO_F207ZG) || \
 	defined(CONFIG_BOARD_STM32F3_DISCO) || \
-	defined(CONFIG_BOARD_STM32L562E_DK) || \
-	defined(CONFIG_BOARD_NUCLEO_L552ZE_Q) || \
 	defined(CONFIG_BOARD_NUCLEO_F401RE) || \
 	defined(CONFIG_BOARD_NUCLEO_F429ZI) || \
 	defined(CONFIG_BOARD_NUCLEO_F746ZG) || \
+	defined(CONFIG_BOARD_NUCLEO_G070RB) || \
 	defined(CONFIG_BOARD_NUCLEO_G071RB) || \
 	defined(CONFIG_BOARD_NUCLEO_L073RZ) || \
-	defined(CONFIG_BOARD_NUCLEO_WB55RG) || \
 	defined(CONFIG_BOARD_NUCLEO_WL55JC) || \
 	defined(CONFIG_BOARD_NUCLEO_L152RE) || \
 	defined(CONFIG_BOARD_OLIMEX_STM32_H103) || \
@@ -218,6 +227,9 @@
 
 #elif defined(CONFIG_BOARD_NUCLEO_F302R8) || \
 	defined(CONFIG_BOARD_NUCLEO_G474RE) || \
+	defined(CONFIG_BOARD_NUCLEO_WB55RG) || \
+	defined(CONFIG_BOARD_STM32L562E_DK) || \
+	defined(CONFIG_BOARD_NUCLEO_L552ZE_Q) || \
 	defined(CONFIG_BOARD_NUCLEO_L412RB_P)
 #define ADC_DEVICE_NODE         DT_INST(0, st_stm32_adc)
 #define ADC_RESOLUTION		12
@@ -265,7 +277,8 @@
 #define ADC_GAIN		ADC_GAIN_1
 #define ADC_REFERENCE		ADC_REF_INTERNAL
 #define ADC_ACQUISITION_TIME	ADC_ACQ_TIME_DEFAULT
-#define ADC_1ST_CHANNEL_ID	15
+#define ADC_1ST_CHANNEL_ID	12
+#define ADC_2ND_CHANNEL_ID	15
 
 #elif defined(CONFIG_BOARD_TWR_KE18F)
 #define ADC_DEVICE_NODE		DT_INST(0, nxp_kinetis_adc12)
@@ -298,7 +311,8 @@
 #elif defined(CONFIG_BOARD_LPCXPRESSO55S69_CPU0) || \
 	defined(CONFIG_BOARD_LPCXPRESSO55S28) || \
 	defined(CONFIG_BOARD_MIMXRT1170_EVK_CM7) || \
-	defined(CONFIG_BOARD_MIMXRT685_EVK)
+	defined(CONFIG_BOARD_MIMXRT685_EVK) || \
+	defined(CONFIG_BOARD_MIMXRT595_EVK)
 #define ADC_DEVICE_NODE		DT_INST(0, nxp_lpc_lpadc)
 #define ADC_RESOLUTION		12
 #define ADC_GAIN		ADC_GAIN_1
@@ -327,6 +341,16 @@
 #define ADC_1ST_CHANNEL_ID	0
 #define ADC_2ND_CHANNEL_ID      1
 
+#elif defined(CONFIG_BOARD_CC1352R1_LAUNCHXL) || \
+	defined(CONFIG_BOARD_CC1352R_SENSORTAG) || \
+	defined(CONFIG_BOARD_CC26X2R1_LAUNCHXL)
+#define ADC_DEVICE_NODE		DT_INST(0, ti_cc13xx_cc26xx_adc)
+#define ADC_RESOLUTION		12
+#define ADC_GAIN		ADC_GAIN_1
+#define ADC_REFERENCE		ADC_REF_INTERNAL
+#define ADC_ACQUISITION_TIME	ADC_ACQ_TIME_DEFAULT
+#define ADC_1ST_CHANNEL_ID	5
+
 #elif defined(CONFIG_BOARD_IT8XXX2_EVB)
 #define ADC_DEVICE_NODE	DT_INST(0, ite_it8xxx2_adc)
 #define ADC_RESOLUTION	10
@@ -353,8 +377,21 @@
 #define ADC_1ST_CHANNEL_ID	0
 #define ADC_2ND_CHANNEL_ID  1
 
-#elif defined(CONFIG_BOARD_RPI_PICO)
+#elif defined(CONFIG_BOARD_RPI_PICO) || \
+	defined(CONFIG_BOARD_ADAFRUIT_KB2040) || \
+	defined(CONFIG_BOARD_SPARKFUN_PRO_MICRO_RP2040)
 #define ADC_DEVICE_NODE		DT_INST(0, raspberrypi_pico_adc)
+#define ADC_RESOLUTION		12
+#define ADC_GAIN		ADC_GAIN_1
+#define ADC_REFERENCE		ADC_REF_INTERNAL
+#define ADC_ACQUISITION_TIME	ADC_ACQ_TIME_DEFAULT
+#define ADC_1ST_CHANNEL_ID	0
+#define ADC_2ND_CHANNEL_ID	1
+
+#elif defined(CONFIG_BOARD_ESP32) || \
+	defined(CONFIG_BOARD_ESP32S2_SAOLA) || \
+	defined(CONFIG_BOARD_ESP32C3_DEVKITM)
+#define ADC_DEVICE_NODE		DT_INST(0, espressif_esp32_adc)
 #define ADC_RESOLUTION		12
 #define ADC_GAIN		ADC_GAIN_1
 #define ADC_REFERENCE		ADC_REF_INTERNAL
@@ -365,6 +402,16 @@
 #elif defined(CONFIG_BOARD_NATIVE_POSIX)
 #define ADC_DEVICE_NODE		DT_INST(0, zephyr_adc_emul)
 #define ADC_RESOLUTION		10
+#define ADC_GAIN		ADC_GAIN_1
+#define ADC_REFERENCE		ADC_REF_INTERNAL
+#define ADC_ACQUISITION_TIME	ADC_ACQ_TIME_DEFAULT
+#define ADC_1ST_CHANNEL_ID	0
+#define ADC_2ND_CHANNEL_ID	1
+
+#elif defined(CONFIG_BOARD_XMC45_RELAX_KIT)
+
+#define ADC_DEVICE_NODE		DT_INST(0, infineon_xmc4xxx_adc)
+#define ADC_RESOLUTION		12
 #define ADC_GAIN		ADC_GAIN_1
 #define ADC_REFERENCE		ADC_REF_INTERNAL
 #define ADC_ACQUISITION_TIME	ADC_ACQ_TIME_DEFAULT
@@ -492,7 +539,7 @@ static int test_task_one_channel(void)
 
 ZTEST_USER(adc_basic, test_adc_sample_one_channel)
 {
-	zassert_true(test_task_one_channel() == TC_PASS, NULL);
+	zassert_true(test_task_one_channel() == TC_PASS);
 }
 
 /*
@@ -528,7 +575,7 @@ static int test_task_two_channels(void)
 ZTEST_USER(adc_basic, test_adc_sample_two_channels)
 {
 #if defined(ADC_2ND_CHANNEL_ID)
-	zassert_true(test_task_two_channels() == TC_PASS, NULL);
+	zassert_true(test_task_two_channels() == TC_PASS);
 #else
 	ztest_test_skip();
 #endif /* defined(ADC_2ND_CHANNEL_ID) */
@@ -580,7 +627,7 @@ static int test_task_asynchronous_call(void)
 ZTEST_USER(adc_basic, test_adc_asynchronous_call)
 {
 #if defined(CONFIG_ADC_ASYNC)
-	zassert_true(test_task_asynchronous_call() == TC_PASS, NULL);
+	zassert_true(test_task_asynchronous_call() == TC_PASS);
 #else
 	ztest_test_skip();
 #endif /* defined(CONFIG_ADC_ASYNC) */
@@ -642,7 +689,7 @@ static int test_task_with_interval(void)
 
 ZTEST(adc_basic, test_adc_sample_with_interval)
 {
-	zassert_true(test_task_with_interval() == TC_PASS, NULL);
+	zassert_true(test_task_with_interval() == TC_PASS);
 }
 
 /*
@@ -727,7 +774,7 @@ static int test_task_repeated_samplings(void)
 
 ZTEST(adc_basic, test_adc_repeated_samplings)
 {
-	zassert_true(test_task_repeated_samplings() == TC_PASS, NULL);
+	zassert_true(test_task_repeated_samplings() == TC_PASS);
 }
 
 /*
@@ -772,5 +819,5 @@ static int test_task_invalid_request(void)
 
 ZTEST_USER(adc_basic, test_adc_invalid_request)
 {
-	zassert_true(test_task_invalid_request() == TC_PASS, NULL);
+	zassert_true(test_task_invalid_request() == TC_PASS);
 }

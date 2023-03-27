@@ -51,7 +51,7 @@ arduino_serial: &lpuart1 {};
 };
 
 &flexspi {
-	reg = <0x402a8000 0x4000>, <0x60000000 DT_SIZE_M(16)>;
+	reg = <0x400a0000 0x4000>, <0x60000000 DT_SIZE_M(16)>;
 	at25sf128a: at25sf128a@0 {
 		compatible = "nxp,imx-flexspi-nor";
 		size = <134217728>;
@@ -104,9 +104,14 @@ zephyr_udc0: &usb1 {
 	status = "okay";
 };
 
-/* Enable GPT for use as a hardware timer. This disables Cortex Systick.
- * to use systick, change this node from "gpt_hw_timer" to "systick"
+/* GPT and Systick are enabled. If power management is enabled, the GPT
+ * timer will be used instead of systick, as allows the core clock to
+ * be gated.
  */
 &gpt_hw_timer {
+	status = "okay";
+};
+
+&systick {
 	status = "okay";
 };

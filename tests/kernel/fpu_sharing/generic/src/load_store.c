@@ -70,6 +70,8 @@
 #endif /* __GNUC__ */
 #elif defined(CONFIG_SPARC)
 #include "float_regs_sparc.h"
+#elif defined(CONFIG_XTENSA)
+#include "float_regs_xtensa.h"
 #endif
 
 #include "float_context.h"
@@ -184,7 +186,7 @@ static void load_store_low(void)
 		}
 
 		/* Terminate if a test error has been reported */
-		zassert_false(error, NULL);
+		zassert_false(error);
 
 		/*
 		 * After every 1000 iterations (arbitrarily chosen), explicitly

@@ -108,10 +108,10 @@ static int config_output_dma(const struct dai_properties *props, uint32_t *chan_
 	dma_cfg.dest_handshake = 0;
 	dma_cfg.source_handshake = 0;
 	dma_cfg.cyclic = 1;
-	dma_cfg.source_data_size = ssp_config.tdm_slot_width / 8;
-	dma_cfg.dest_data_size = ssp_config.tdm_slot_width / 8;
-	dma_cfg.source_burst_length = ssp_config.tdm_slots;
-	dma_cfg.dest_burst_length = ssp_config.tdm_slots;
+	dma_cfg.source_data_size = 1;
+	dma_cfg.dest_data_size = 1;
+	dma_cfg.source_burst_length = 1;
+	dma_cfg.dest_burst_length = 1;
 	dma_cfg.user_data = NULL;
 	dma_cfg.dma_callback = dma_callback;
 	dma_cfg.block_count = XFERS;
@@ -148,10 +148,10 @@ static int config_input_dma(const struct dai_properties *props, uint32_t *chan_i
 	dma_cfg_rx.dest_handshake = 0;
 	dma_cfg_rx.source_handshake = 0;
 	dma_cfg_rx.cyclic = 1;
-	dma_cfg_rx.source_data_size = ssp_config.tdm_slot_width / 8;
-	dma_cfg_rx.dest_data_size = ssp_config.tdm_slot_width / 8;
-	dma_cfg_rx.source_burst_length = ssp_config.tdm_slots;
-	dma_cfg_rx.dest_burst_length = ssp_config.tdm_slots;
+	dma_cfg_rx.source_data_size = 1;
+	dma_cfg_rx.dest_data_size = 1;
+	dma_cfg_rx.source_burst_length = 1;
+	dma_cfg_rx.dest_burst_length = 1;
 	dma_cfg_rx.user_data = NULL;
 	dma_cfg_rx.dma_callback = dma_callback_rx;
 	dma_cfg_rx.block_count = XFERS;
@@ -383,7 +383,7 @@ ZTEST(adsp_ssp, test_adsp_ssp_config_set)
 
 	ret = dai_config_set(dev_dai_ssp, &config, &ssp_config);
 
-	zassert_equal(ret, TC_PASS, NULL);
+	zassert_equal(ret, TC_PASS);
 }
 
 static void test_adsp_ssp_probe(void)
@@ -392,7 +392,7 @@ static void test_adsp_ssp_probe(void)
 
 	ret = dai_probe(dev_dai_ssp);
 
-	zassert_equal(ret, TC_PASS, NULL);
+	zassert_equal(ret, TC_PASS);
 }
 
 static void *adsp_ssp_setup(void)

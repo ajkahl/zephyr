@@ -83,13 +83,29 @@ static const struct device *const devices[] = {
 #ifdef CONFIG_COUNTER_MCUX_LPC_RTC
 	DEVS_FOR_DT_COMPAT(nxp_lpc_rtc)
 #endif
+#ifdef CONFIG_COUNTER_GECKO_RTCC
 	DEVS_FOR_DT_COMPAT(silabs_gecko_rtcc)
+#endif
+#ifdef CONFIG_COUNTER_RTC_STM32
 	DEVS_FOR_DT_COMPAT(st_stm32_rtc)
+#endif
+#ifdef CONFIG_COUNTER_GECKO_STIMER
+	DEVS_FOR_DT_COMPAT(silabs_gecko_stimer)
+#endif
 #ifdef CONFIG_COUNTER_MCUX_PIT
 	DEVS_FOR_DT_COMPAT(nxp_kinetis_pit)
 #endif
 #ifdef CONFIG_COUNTER_XLNX_AXI_TIMER
 	DEVS_FOR_DT_COMPAT(xlnx_xps_timer_1_00_a)
+#endif
+#ifdef CONFIG_COUNTER_TMR_ESP32
+	DEVS_FOR_DT_COMPAT(espressif_esp32_timer)
+#endif
+#ifdef CONFIG_COUNTER_NXP_S32_SYS_TIMER
+	DEVS_FOR_DT_COMPAT(nxp_s32_sys_timer)
+#endif
+#ifdef CONFIG_COUNTER_TIMER_GD32
+	DEVS_FOR_DT_COMPAT(gd_gd32_timer)
 #endif
 };
 
@@ -157,6 +173,7 @@ static void counter_tear_down_instance(const struct device *dev)
 static void test_all_instances(counter_test_func_t func,
 				counter_capability_func_t capability_check)
 {
+	zassert_true(ARRAY_SIZE(devices) > 0, "No device found");
 	for (int i = 0; i < ARRAY_SIZE(devices); i++) {
 		counter_setup_instance(devices[i]);
 		if ((capability_check == NULL) ||
@@ -968,8 +985,18 @@ static bool reliable_cancel_capable(const struct device *dev)
 		return true;
 	}
 #endif
+#ifdef CONFIG_COUNTER_TIMER_GD32
+	if (single_channel_alarm_capable(dev)) {
+		return true;
+	}
+#endif
 #ifdef CONFIG_COUNTER_NATIVE_POSIX
 	if (dev == DEVICE_DT_GET(DT_NODELABEL(counter0))) {
+		return true;
+	}
+#endif
+#ifdef CONFIG_COUNTER_NXP_S32_SYS_TIMER
+	if (single_channel_alarm_capable(dev)) {
 		return true;
 	}
 #endif

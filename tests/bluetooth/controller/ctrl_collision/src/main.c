@@ -21,6 +21,8 @@
 #include "util/memq.h"
 #include "util/dbuf.h"
 
+#include "pdu_df.h"
+#include "lll/pdu_vendor.h"
 #include "pdu.h"
 #include "ll.h"
 #include "ll_settings.h"
@@ -178,7 +180,7 @@ void test_phy_update_central_loc_collision(void)
 
 	/* Initiate an PHY Update Procedure */
 	err = ull_cp_phy_update(&conn, PHY_2M, PREFER_S8_CODING, PHY_2M, 1);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS);
 
 	/*** ***/
 
@@ -356,7 +358,7 @@ void test_phy_update_central_rem_collision(void)
 
 	/* Initiate an PHY Update Procedure */
 	err = ull_cp_phy_update(&conn, PHY_2M, PREFER_S8_CODING, PHY_2M, 1);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS);
 
 	/*** ***/
 
@@ -517,7 +519,7 @@ void test_phy_update_periph_loc_collision(void)
 
 	/* Initiate an PHY Update Procedure */
 	err = ull_cp_phy_update(&conn, PHY_2M, PREFER_S8_CODING, PHY_2M, 1);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS);
 
 	/* Prepare */
 	event_prepare(&conn);
@@ -644,7 +646,7 @@ void test_phy_conn_update_central_loc_collision(void)
 	/* (A) Initiate a PHY update procedure */
 
 	err = ull_cp_phy_update(&conn, PHY_2M, PREFER_S8_CODING, PHY_2M, 1);
-	zassert_equal(err, BT_HCI_ERR_SUCCESS, NULL);
+	zassert_equal(err, BT_HCI_ERR_SUCCESS);
 
 	/* Prepare */
 	event_prepare(&conn);

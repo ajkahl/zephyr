@@ -5,13 +5,15 @@ arch: xtensa
 toolchain:
   - zephyr
 supported:
+  - adc
+  - dac
   - gpio
   - i2c
   - watchdog
   - uart
-  - pinmux
   - nvs
   - pwm
+  - dac
 testing:
   ignore_tags:
     - net

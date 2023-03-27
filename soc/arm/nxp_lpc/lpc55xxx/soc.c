@@ -29,7 +29,7 @@
 #endif
 #if CONFIG_USB_DC_NXP_LPCIP3511
 #include "usb_phy.h"
-#include "usb_dc_mcux.h"
+#include "usb.h"
 #endif
 
 #define CTIMER_CLOCK_SOURCE(node_id) \
@@ -58,6 +58,12 @@ const pll_setup_t pll0Setup = {
 
 static ALWAYS_INLINE void clock_init(void)
 {
+
+#if defined(CONFIG_SOC_LPC55S36)
+	/* Power Management Controller initialization */
+	POWER_PowerInit();
+#endif
+
 #if defined(CONFIG_SOC_LPC55S06) || defined(CONFIG_SOC_LPC55S16) || \
 	defined(CONFIG_SOC_LPC55S28) || defined(CONFIG_SOC_LPC55S36) || \
 	defined(CONFIG_SOC_LPC55S69_CPU0)
@@ -204,6 +210,16 @@ DT_FOREACH_STATUS_OKAY(nxp_lpc_ctimer, CTIMER_CLOCK_SETUP)
 #endif
 
 #endif /* CONFIG_SOC_LPC55S69_CPU0 */
+
+#if defined(CONFIG_SOC_LPC55S36) && defined(CONFIG_PWM)
+	/* Set the Submodule Clocks for FlexPWM */
+	SYSCON->PWM0SUBCTL |=
+	  (SYSCON_PWM0SUBCTL_CLK0_EN_MASK | SYSCON_PWM0SUBCTL_CLK1_EN_MASK |
+	   SYSCON_PWM0SUBCTL_CLK2_EN_MASK);
+	SYSCON->PWM1SUBCTL |=
+	  (SYSCON_PWM1SUBCTL_CLK0_EN_MASK | SYSCON_PWM1SUBCTL_CLK1_EN_MASK |
+	   SYSCON_PWM1SUBCTL_CLK2_EN_MASK);
+#endif
 }
 
 /**
