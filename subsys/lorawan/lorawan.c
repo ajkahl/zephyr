@@ -75,6 +75,8 @@ static LoRaMacEventInfoStatus_t last_mlme_indication_status;
 static uint8_t (*get_battery_level_user)(void);
 static void (*dr_change_cb)(enum lorawan_datarate dr);
 
+static LoRaMacRegion_t sActiveRegion = LORAWAN_REGION;
+
 /* implementation required by the soft-se (software secure element) */
 void BoardGetUniqueId(uint8_t *id)
 {
@@ -214,17 +216,17 @@ static LoRaMacStatus_t lorawan_join_otaa(
 	mlme_req.Req.Join.Datarate = default_datarate;
 	mlme_req.Req.Join.NetworkActivation = ACTIVATION_TYPE_OTAA;
 
-	if (IS_ENABLED(CONFIG_LORAWAN_NVM_NONE)) {
-		/* Retrieve the NVM context to store device nonce */
-		mib_req.Type = MIB_NVM_CTXS;
-		if (LoRaMacMibGetRequestConfirm(&mib_req) !=
-			LORAMAC_STATUS_OK) {
-			LOG_ERR("Could not get NVM context");
-			return -EINVAL;
-		}
-		mib_req.Param.Contexts->Crypto.DevNonce =
-			join_cfg->otaa.dev_nonce;
-	}
+	// if (IS_ENABLED(CONFIG_LORAWAN_NVM_NONE)) {
+	// 	/* Retrieve the NVM context to store device nonce */
+	// 	mib_req.Type = MIB_NVM_CTXS;
+	// 	if (LoRaMacMibGetRequestConfirm(&mib_req) !=
+	// 		LORAMAC_STATUS_OK) {
+	// 		LOG_ERR("Could not get NVM context");
+	// 		return -EINVAL;
+	// 	}
+	// 	mib_req.Param.Contexts->Crypto.DevNonce =
+	// 		join_cfg->otaa.dev_nonce;
+	// }
 
 	mib_req.Type = MIB_DEV_EUI;
 	mib_req.Param.DevEui = join_cfg->dev_eui;
@@ -584,7 +586,8 @@ int lorawan_start(void)
 
 	/* Retrieve the default TX datarate for selected region */
 	phy_params.Attribute = PHY_DEF_TX_DR;
-	phy_param = RegionGetPhyParam(LORAWAN_REGION, &phy_params);
+	phy_param = RegionGetPhyParam(sActiveRegion, &phy_params);
+	//phy_param = RegionGetPhyParam(LORAWAN_REGION, &phy_params);
 	default_datarate = phy_param.Value;
 	current_datarate = default_datarate;
 
@@ -596,9 +599,13 @@ int lorawan_start(void)
 	return 0;
 }
 
-static int lorawan_init(const struct device *dev)
+// static int lorawan_init(const struct device *dev)
+// {
+// 	ARG_UNUSED(dev);
+
+// Modified this to run in app, with region and storage callback
+int lorawan_init(LoRaMacRegion_t region, void* nvm_callback) // AJK
 {
-	ARG_UNUSED(dev);
 
 	LoRaMacStatus_t status;
 
@@ -611,29 +618,36 @@ static int lorawan_init(const struct device *dev)
 	mac_callbacks.GetBatteryLevel = get_battery_level;
 	mac_callbacks.GetTemperatureLevel = NULL;
 
-	if (IS_ENABLED(CONFIG_LORAWAN_NVM_NONE)) {
-		mac_callbacks.NvmDataChange = NULL;
-	} else {
-		mac_callbacks.NvmDataChange = lorawan_nvm_data_mgmt_event;
+	// if (IS_ENABLED(CONFIG_LORAWAN_NVM_NONE)) {
+	// 	mac_callbacks.NvmDataChange = NULL;
+	// } else {
+	// 	mac_callbacks.NvmDataChange = lorawan_nvm_data_mgmt_event;
+	// }
+
+	if (nvm_callback != NULL) {
+		mac_callbacks.NvmDataChange = nvm_callback;
 	}
 
 	mac_callbacks.MacProcessNotify = mac_process_notify;
 
-	status = LoRaMacInitialization(&mac_primitives, &mac_callbacks,
-				       LORAWAN_REGION);
+	//status = LoRaMacInitialization(&mac_primitives, &mac_callbacks, LORAWAN_REGION);
+	sActiveRegion = region;
+	status = LoRaMacInitialization(&mac_primitives, &mac_callbacks, sActiveRegion); // AJK
+
 	if (status != LORAMAC_STATUS_OK) {
 		LOG_ERR("LoRaMacInitialization failed: %s",
 			lorawan_status2str(status));
-		return -EINVAL;
+		//return -EINVAL;
+		return status;
 	}
 
-	if (!IS_ENABLED(CONFIG_LORAWAN_NVM_NONE)) {
-		lorawan_nvm_init();
-		lorawan_nvm_data_restore();
-	}
+	// if (!IS_ENABLED(CONFIG_LORAWAN_NVM_NONE)) {
+	// 	lorawan_nvm_init();
+	// 	lorawan_nvm_data_restore();
+	// }
 
 	LOG_DBG("LoRaMAC Initialized");
 
 	return 0;
 }
-SYS_INIT(lorawan_init, APPLICATION, CONFIG_KERNEL_INIT_PRIORITY_DEVICE);
+//SYS_INIT(lorawan_init, APPLICATION, CONFIG_KERNEL_INIT_PRIORITY_DEVICE);

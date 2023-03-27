@@ -592,7 +592,11 @@ static void set_up_fixed_clock_sources(void)
 
 #if STM32_LSE_DRIVING
 		/* Configure driving capability */
-		LL_RCC_LSE_SetDriveCapability(STM32_LSE_DRIVING << RCC_BDCR_LSEDRV_Pos);
+		//LL_RCC_LSE_SetDriveCapability(STM32_LSE_DRIVING << RCC_BDCR_LSEDRV_Pos);
+		#warning this should not be hard coded
+		
+		LL_RCC_LSE_SetDriveCapability(LL_RCC_LSEDRIVE_HIGH);
+		//LL_RCC_LSE_SetDriveCapability(LL_RCC_LSEDRIVE_MEDIUMLOW);
 #endif
 
 #ifdef RCC_BDCR_LSESYSEN

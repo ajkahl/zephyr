@@ -17,6 +17,7 @@
 
 #include <zephyr/device.h>
 #include <zephyr/sys/slist.h>
+#include <LoRaMac.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -203,6 +204,18 @@ int lorawan_join(const struct lorawan_join_config *config);
  * @return 0 if successful, negative errno code if failure
  */
 int lorawan_start(void);
+
+/**
+ * @brief Init the LoRaWAN stack
+ *
+ * This function need to be called before start
+ *
+ * @param region       	Chosen region
+ * @param nvmCallback	Callback when peristent storage required
+ * 
+ * @return 0 if successful, negative errno code if failure
+ */
+int lorawan_init(LoRaMacRegion_t region, void* nvm_callback); // AJK
 
 /**
  * @brief Send data to the LoRaWAN network
