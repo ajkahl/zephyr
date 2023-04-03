@@ -327,7 +327,7 @@ int bt_hci_cmd_send_sync(uint16_t opcode, struct net_buf *buf,
 	net_buf_put(&bt_dev.cmd_tx_queue, net_buf_ref(buf));
 
 	err = k_sem_take(&sync_sem, HCI_CMD_TIMEOUT);
-	BT_ASSERT_MSG(err == 0, "k_sem_take failed with err %d", err);
+	BT_ASSERT_MSG(err == 0, "command opcode 0x%04x timeout with err %d", opcode, err);
 
 	status = cmd(buf)->status;
 	if (status) {
@@ -424,6 +424,14 @@ static void hci_num_completed_packets(struct net_buf *buf)
 {
 	struct bt_hci_evt_num_completed_packets *evt = (void *)buf->data;
 	int i;
+
+	if (sizeof(*evt) + sizeof(evt->h[0]) * evt->num_handles > buf->len) {
+		LOG_ERR("evt num_handles (=%u) too large (%u > %u)",
+			evt->num_handles,
+			sizeof(*evt) + sizeof(evt->h[0]) * evt->num_handles,
+			buf->len);
+		return;
+	}
 
 	LOG_DBG("num_handles %u", evt->num_handles);
 
@@ -3167,12 +3175,11 @@ static int set_event_mask(void)
 	return bt_hci_cmd_send_sync(BT_HCI_OP_SET_EVENT_MASK, buf, NULL);
 }
 
-#if defined(CONFIG_BT_DEBUG)
 static const char *ver_str(uint8_t ver)
 {
 	const char * const str[] = {
 		"1.0b", "1.1", "1.2", "2.0", "2.1", "3.0", "4.0", "4.1", "4.2",
-		"5.0", "5.1", "5.2", "5.3"
+		"5.0", "5.1", "5.2", "5.3", "5.4"
 	};
 
 	if (ver < ARRAY_SIZE(str)) {
@@ -3222,14 +3229,8 @@ static void bt_dev_show_info(void)
 	LOG_INF("LMP: version %s (0x%02x) subver 0x%04x", ver_str(bt_dev.lmp_version),
 		bt_dev.lmp_version, bt_dev.lmp_subversion);
 }
-#else
-static inline void bt_dev_show_info(void)
-{
-}
-#endif /* CONFIG_BT_DEBUG */
 
 #if defined(CONFIG_BT_HCI_VS_EXT)
-#if defined(CONFIG_BT_DEBUG)
 static const char *vs_hw_platform(uint16_t platform)
 {
 	static const char * const plat_str[] = {
@@ -3275,7 +3276,6 @@ static const char *vs_fw_variant(uint8_t variant)
 
 	return "unknown";
 }
-#endif /* CONFIG_BT_DEBUG */
 
 static void hci_vs_init(void)
 {
@@ -3315,7 +3315,6 @@ static void hci_vs_init(void)
 		return;
 	}
 
-#if defined(CONFIG_BT_DEBUG)
 	rp.info = (void *)rsp->data;
 	LOG_INF("HW Platform: %s (0x%04x)", vs_hw_platform(sys_le16_to_cpu(rp.info->hw_platform)),
 		sys_le16_to_cpu(rp.info->hw_platform));
@@ -3326,7 +3325,6 @@ static void hci_vs_init(void)
 	LOG_INF("Firmware: %s (0x%02x) Version %u.%u Build %u", vs_fw_variant(rp.info->fw_variant),
 		rp.info->fw_variant, rp.info->fw_version, sys_le16_to_cpu(rp.info->fw_revision),
 		sys_le32_to_cpu(rp.info->fw_build));
-#endif /* CONFIG_BT_DEBUG */
 
 	net_buf_unref(rsp);
 
@@ -3798,16 +3796,6 @@ int bt_disable(void)
 	/* If random address was set up - clear it */
 	bt_addr_le_copy(&bt_dev.random_addr, BT_ADDR_LE_ANY);
 
-	/* Abort TX thread */
-	k_thread_abort(&tx_thread_data);
-
-#if defined(CONFIG_BT_RECV_WORKQ_BT)
-	/* Abort RX thread */
-	k_thread_abort(&bt_workq.thread);
-#endif
-
-	bt_monitor_send(BT_MONITOR_CLOSE_INDEX, NULL, 0);
-
 #if defined(CONFIG_BT_BROADCASTER)
 	bt_adv_reset_adv_pool();
 #endif /* CONFIG_BT_BROADCASTER */
@@ -3827,6 +3815,17 @@ int bt_disable(void)
 	bt_conn_cleanup_all();
 	disconnected_handles_reset();
 #endif /* CONFIG_BT_CONN */
+
+	/* Abort TX thread */
+	k_thread_abort(&tx_thread_data);
+
+#if defined(CONFIG_BT_RECV_WORKQ_BT)
+	/* Abort RX thread */
+	k_thread_abort(&bt_workq.thread);
+#endif
+
+	bt_monitor_send(BT_MONITOR_CLOSE_INDEX, NULL, 0);
+
 	/* Clear BT_DEV_ENABLE here to prevent early bt_enable() calls, before disable is
 	 * completed.
 	 */
@@ -4049,38 +4048,6 @@ int bt_le_set_rpa_timeout(uint16_t new_rpa_timeout)
 	return 0;
 }
 #endif
-
-void bt_data_parse(struct net_buf_simple *ad,
-		   bool (*func)(struct bt_data *data, void *user_data),
-		   void *user_data)
-{
-	while (ad->len > 1) {
-		struct bt_data data;
-		uint8_t len;
-
-		len = net_buf_simple_pull_u8(ad);
-		if (len == 0U) {
-			/* Early termination */
-			return;
-		}
-
-		if (len > ad->len) {
-			LOG_WRN("malformed advertising data %u / %u",
-				len, ad->len);
-			return;
-		}
-
-		data.type = net_buf_simple_pull_u8(ad);
-		data.data_len = len - 1;
-		data.data = ad->data;
-
-		if (!func(&data, user_data)) {
-			return;
-		}
-
-		net_buf_simple_pull(ad, len - 1);
-	}
-}
 
 int bt_configure_data_path(uint8_t dir, uint8_t id, uint8_t vs_config_len,
 			   const uint8_t *vs_config)

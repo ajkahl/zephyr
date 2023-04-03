@@ -19,9 +19,13 @@
  */
 enum wifi_security_type {
 	WIFI_SECURITY_TYPE_NONE = 0,
+	WIFI_SECURITY_TYPE_WEP,
+	WIFI_SECURITY_TYPE_WPA_PSK,
 	WIFI_SECURITY_TYPE_PSK,
 	WIFI_SECURITY_TYPE_PSK_SHA256,
 	WIFI_SECURITY_TYPE_SAE,
+	WIFI_SECURITY_TYPE_WAPI,
+	WIFI_SECURITY_TYPE_EAP,
 
 	__WIFI_SECURITY_TYPE_AFTER_LAST,
 	WIFI_SECURITY_TYPE_MAX = __WIFI_SECURITY_TYPE_AFTER_LAST - 1,
@@ -36,12 +40,20 @@ static inline const char *wifi_security_txt(enum wifi_security_type security)
 	switch (security) {
 	case WIFI_SECURITY_TYPE_NONE:
 		return "OPEN";
+	case WIFI_SECURITY_TYPE_WEP:
+		return "WEP";
+	case WIFI_SECURITY_TYPE_WPA_PSK:
+		return "WPA-PSK";
 	case WIFI_SECURITY_TYPE_PSK:
 		return "WPA2-PSK";
 	case WIFI_SECURITY_TYPE_PSK_SHA256:
 		return "WPA2-PSK-SHA256";
 	case WIFI_SECURITY_TYPE_SAE:
 		return "WPA3-SAE";
+	case WIFI_SECURITY_TYPE_WAPI:
+		return "WAPI";
+	case WIFI_SECURITY_TYPE_EAP:
+		return "EAP";
 	case WIFI_SECURITY_TYPE_UNKNOWN:
 	default:
 		return "UNKNOWN";
@@ -316,6 +328,12 @@ static const char * const wifi_twt_setup_cmd2str[] = {
 	[WIFI_TWT_SETUP_CMD_ALTERNATE] = "TWT alternate",
 	[WIFI_TWT_SETUP_CMD_DICTATE] = "TWT dictate",
 	[WIFI_TWT_SETUP_CMD_REJECT] = "TWT reject",
+};
+
+enum wifi_twt_setup_resp_status {
+	/* TWT Setup response status */
+	WIFI_TWT_RESP_RECEIVED = 0,
+	WIFI_TWT_RESP_NOT_RECEIVED,
 };
 
 #endif /* ZEPHYR_INCLUDE_NET_WIFI_H_ */

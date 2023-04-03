@@ -15,8 +15,10 @@ import subprocess
 import sys
 import time
 import traceback
+import yaml
 from multiprocessing import Lock, Process, Value
 from multiprocessing.managers import BaseManager
+from typing import List
 
 from colorama import Fore
 from domains import Domains
@@ -225,7 +227,7 @@ class CMake:
         self.default_encoding = sys.getdefaultencoding()
         self.jobserver = jobserver
 
-    def parse_generated(self):
+    def parse_generated(self, filter_stages=[]):
         self.defconfig = {}
         return {}
 
@@ -299,29 +301,35 @@ class CMake:
 
         return results
 
-    def run_cmake(self, args=""):
+    def run_cmake(self, args="", filter_stages=[]):
 
         if not self.options.disable_warnings_as_errors:
-            ldflags = "-Wl,--fatal-warnings"
-            cflags = "-Werror"
-            aflags = "-Werror -Wa,--fatal-warnings"
+            warnings_as_errors = 'y'
             gen_defines_args = "--edtlib-Werror"
         else:
-            ldflags = cflags = aflags = ""
+            warnings_as_errors = 'n'
             gen_defines_args = ""
 
         logger.debug("Running cmake on %s for %s" % (self.source_dir, self.platform.name))
         cmake_args = [
             f'-B{self.build_dir}',
             f'-DTC_RUNID={self.instance.run_id}',
-            f'-DEXTRA_CFLAGS={cflags}',
-            f'-DEXTRA_AFLAGS={aflags}',
-            f'-DEXTRA_LDFLAGS={ldflags}',
+            f'-DCONFIG_COMPILER_WARNINGS_AS_ERRORS={warnings_as_errors}',
             f'-DEXTRA_GEN_DEFINES_ARGS={gen_defines_args}',
             f'-G{self.env.generator}'
         ]
 
-        if self.testsuite.sysbuild:
+        # If needed, run CMake using the package_helper script first, to only run
+        # a subset of all cmake modules. This output will be used to filter
+        # testcases, and the full CMake configuration will be run for
+        # testcases that should be built
+        if filter_stages:
+            cmake_filter_args = [
+                f'-DMODULES={",".join(filter_stages)}',
+                f'-P{canonical_zephyr_base}/cmake/package_helper.cmake',
+            ]
+
+        if self.testsuite.sysbuild and not filter_stages:
             logger.debug("Building %s using sysbuild" % (self.source_dir))
             source_args = [
                 f'-S{canonical_zephyr_base}/share/sysbuild',
@@ -340,6 +348,10 @@ class CMake:
 
         cmake = shutil.which('cmake')
         cmd = [cmake] + cmake_args
+
+        if filter_stages:
+            cmd += cmake_filter_args
+
         kwargs = dict()
 
         log_command(logger, "Calling cmake", cmd)
@@ -359,7 +371,7 @@ class CMake:
         out, _ = p.communicate()
 
         if p.returncode == 0:
-            filter_results = self.parse_generated()
+            filter_results = self.parse_generated(filter_stages)
             msg = "Finished building %s for %s" % (self.source_dir, self.platform.name)
             logger.debug(msg)
             results = {'msg': msg, 'filter': filter_results}
@@ -381,6 +393,7 @@ class CMake:
 
         return results
 
+
 class FilterBuilder(CMake):
 
     def __init__(self, testsuite, platform, source_dir, build_dir, jobserver):
@@ -388,12 +401,12 @@ class FilterBuilder(CMake):
 
         self.log = "config-twister.log"
 
-    def parse_generated(self):
+    def parse_generated(self, filter_stages=[]):
 
         if self.platform.name == "unit_testing":
             return {}
 
-        if self.testsuite.sysbuild:
+        if self.testsuite.sysbuild and not filter_stages:
             # Load domain yaml to get default domain build directory
             domain_path = os.path.join(self.build_dir, "domains.yaml")
             domains = Domains.from_file(domain_path)
@@ -404,21 +417,26 @@ class FilterBuilder(CMake):
             edt_pickle = os.path.join(domain_build, "zephyr", "edt.pickle")
         else:
             cmake_cache_path = os.path.join(self.build_dir, "CMakeCache.txt")
-            defconfig_path = os.path.join(self.build_dir, "zephyr", ".config")
+            # .config is only available after kconfig stage in cmake. If only dt based filtration is required
+            # package helper call won't produce .config
+            if not filter_stages or "kconfig" in filter_stages:
+                defconfig_path = os.path.join(self.build_dir, "zephyr", ".config")
+            # dt is compiled before kconfig, so edt_pickle is available regardless of choice of filter stages
             edt_pickle = os.path.join(self.build_dir, "zephyr", "edt.pickle")
 
 
-        with open(defconfig_path, "r") as fp:
-            defconfig = {}
-            for line in fp.readlines():
-                m = self.config_re.match(line)
-                if not m:
-                    if line.strip() and not line.startswith("#"):
-                        sys.stderr.write("Unrecognized line %s\n" % line)
-                    continue
-                defconfig[m.group(1)] = m.group(2).strip()
+        if not filter_stages or "kconfig" in filter_stages:
+            with open(defconfig_path, "r") as fp:
+                defconfig = {}
+                for line in fp.readlines():
+                    m = self.config_re.match(line)
+                    if not m:
+                        if line.strip() and not line.startswith("#"):
+                            sys.stderr.write("Unrecognized line %s\n" % line)
+                        continue
+                    defconfig[m.group(1)] = m.group(2).strip()
 
-        self.defconfig = defconfig
+            self.defconfig = defconfig
 
         cmake_conf = {}
         try:
@@ -436,7 +454,8 @@ class FilterBuilder(CMake):
             "PLATFORM": self.platform.name
         }
         filter_data.update(os.environ)
-        filter_data.update(self.defconfig)
+        if not filter_stages or "kconfig" in filter_stages:
+            filter_data.update(self.defconfig)
         filter_data.update(self.cmake_cache)
 
         if self.testsuite.sysbuild and self.env.options.device_testing:
@@ -528,6 +547,22 @@ class ProjectBuilder(FilterBuilder):
         op = message.get('op')
 
         self.instance.setup_handler(self.env)
+
+        if op == "filter":
+            res = self.cmake(filter_stages=self.instance.filter_stages)
+            if self.instance.status in ["failed", "error"]:
+                pipeline.put({"op": "report", "test": self.instance})
+            else:
+                # Here we check the dt/kconfig filter results coming from running cmake
+                if self.instance.name in res['filter'] and res['filter'][self.instance.name]:
+                    logger.debug("filtering %s" % self.instance.name)
+                    self.instance.status = "filtered"
+                    self.instance.reason = "runtime filter"
+                    results.skipped_runtime += 1
+                    self.instance.add_missing_case_status("skipped")
+                    pipeline.put({"op": "report", "test": self.instance})
+                else:
+                    pipeline.put({"op": "cmake", "test": self.instance})
 
         # The build process, call cmake and build with configured generator
         if op == "cmake":
@@ -695,36 +730,127 @@ class ProjectBuilder(FilterBuilder):
     def cleanup_device_testing_artifacts(self):
         logger.debug("Cleaning up for Device Testing {}".format(self.instance.build_dir))
 
-        sanitizelist = [
-            'CMakeCache.txt',
-            os.path.join('zephyr', 'runners.yaml'),
-        ]
+        files_to_keep = self._get_binaries()
+        files_to_keep.append(os.path.join('zephyr', 'runners.yaml'))
+
+        self.cleanup_artifacts(files_to_keep)
+
+        self._sanitize_files()
+
+    def _get_binaries(self) -> List[str]:
+        """
+        Get list of binaries paths (absolute or relative to the
+        self.instance.build_dir), basing on information from platform.binaries
+        or runners.yaml. If they are not found take default binaries like
+        "zephyr/zephyr.hex" etc.
+        """
+        binaries: List[str] = []
+
         platform = self.instance.platform
         if platform.binaries:
-            keep = []
             for binary in platform.binaries:
-                keep.append(os.path.join('zephyr', binary ))
-        else:
-            keep = [
+                binaries.append(os.path.join('zephyr', binary))
+
+        binaries += self._get_binaries_from_runners()
+
+        # if binaries was not found in platform.binaries and runners.yaml take default ones
+        if len(binaries) == 0:
+            binaries = [
                 os.path.join('zephyr', 'zephyr.hex'),
                 os.path.join('zephyr', 'zephyr.bin'),
                 os.path.join('zephyr', 'zephyr.elf'),
-                ]
+                os.path.join('zephyr', 'zephyr.exe'),
+            ]
+        return binaries
 
-        keep += sanitizelist
+    def _get_binaries_from_runners(self) -> List[str]:
+        """
+        Get list of binaries paths (absolute or relative to the
+        self.instance.build_dir) from runners.yaml file.
+        """
+        runners_file_path: str = os.path.join(self.instance.build_dir, 'zephyr', 'runners.yaml')
+        if not os.path.exists(runners_file_path):
+            return []
 
-        self.cleanup_artifacts(keep)
+        with open(runners_file_path, 'r') as file:
+            runners_content: dict = yaml.safe_load(file)
 
-        # sanitize paths so files are relocatable
-        for file in sanitizelist:
-            file = os.path.join(self.instance.build_dir, file)
+        if 'config' not in runners_content:
+            return []
 
-            with open(file, "rt") as fin:
-                data = fin.read()
-                data = data.replace(canonical_zephyr_base+"/", "")
+        runners_config: dict = runners_content['config']
+        binary_keys: List[str] = ['elf_file', 'hex_file', 'bin_file']
 
-            with open(file, "wt") as fin:
-                fin.write(data)
+        binaries: List[str] = []
+        for binary_key in binary_keys:
+            binary_path = runners_config.get(binary_key)
+            if binary_path is None:
+                continue
+            if os.path.isabs(binary_path):
+                binaries.append(binary_path)
+            else:
+                binaries.append(os.path.join('zephyr', binary_path))
+
+        return binaries
+
+    def _sanitize_files(self):
+        """
+        Sanitize files to make it possible to flash those file on different
+        computer/system.
+        """
+        self._sanitize_runners_file()
+        self._sanitize_zephyr_base_from_files()
+
+    def _sanitize_runners_file(self):
+        """
+        Replace absolute paths of binary files for relative ones. The base
+        directory for those files is f"{self.instance.build_dir}/zephyr"
+        """
+        runners_dir_path: str = os.path.join(self.instance.build_dir, 'zephyr')
+        runners_file_path: str = os.path.join(runners_dir_path, 'runners.yaml')
+        if not os.path.exists(runners_file_path):
+            return
+
+        with open(runners_file_path, 'rt') as file:
+            runners_content_text = file.read()
+            runners_content_yaml: dict = yaml.safe_load(runners_content_text)
+
+        if 'config' not in runners_content_yaml:
+            return
+
+        runners_config: dict = runners_content_yaml['config']
+        binary_keys: List[str] = ['elf_file', 'hex_file', 'bin_file']
+
+        for binary_key in binary_keys:
+            binary_path = runners_config.get(binary_key)
+            # sanitize only paths which exist and are absolute
+            if binary_path is None or not os.path.isabs(binary_path):
+                continue
+            binary_path_relative = os.path.relpath(binary_path, start=runners_dir_path)
+            runners_content_text = runners_content_text.replace(binary_path, binary_path_relative)
+
+        with open(runners_file_path, 'wt') as file:
+            file.write(runners_content_text)
+
+    def _sanitize_zephyr_base_from_files(self):
+        """
+        Remove Zephyr base paths from selected files.
+        """
+        files_to_sanitize = [
+            'CMakeCache.txt',
+            os.path.join('zephyr', 'runners.yaml'),
+        ]
+        for file_path in files_to_sanitize:
+            file_path = os.path.join(self.instance.build_dir, file_path)
+            if not os.path.exists(file_path):
+                continue
+
+            with open(file_path, "rt") as file:
+                data = file.read()
+                data = data.replace(canonical_zephyr_base+os.path.sep, "")
+
+            with open(file_path, "wt") as file:
+                file.write(data)
 
     def report_out(self, results):
         total_to_do = results.total
@@ -744,7 +870,6 @@ class ProjectBuilder(FilterBuilder):
             if self.options.verbose:
                 status = Fore.RED + txt + Fore.RESET + instance.reason
             else:
-                print("")
                 logger.error(
                     "{:<25} {:<50} {}{}{}: {}".format(
                         instance.platform.name,
@@ -798,9 +923,9 @@ class ProjectBuilder(FilterBuilder):
         else:
             completed_perc = 0
             if total_to_do > 0:
-                completed_perc = int((float(results.done + results.skipped_filter) / total_to_do) * 100)
+                completed_perc = int((float(results.done) / total_to_do) * 100)
 
-            sys.stdout.write("\rINFO    - Total complete: %s%4d/%4d%s  %2d%%  skipped: %s%4d%s, failed: %s%4d%s, error: %s%4d%s" % (
+            sys.stdout.write("INFO    - Total complete: %s%4d/%4d%s  %2d%%  skipped: %s%4d%s, failed: %s%4d%s, error: %s%4d%s\r" % (
                 Fore.GREEN,
                 results.done,
                 total_to_do,
@@ -815,47 +940,53 @@ class ProjectBuilder(FilterBuilder):
                 Fore.RED if results.error > 0 else Fore.RESET,
                 results.error,
                 Fore.RESET
-            )
-                             )
+                )
+                )
         sys.stdout.flush()
 
-    def cmake(self):
+    @staticmethod
+    def cmake_assemble_args(args, handler, extra_conf_files, extra_overlay_confs,
+                            extra_dtc_overlay_files, cmake_extra_args,
+                            build_dir):
+        if handler.ready:
+            args.extend(handler.args)
 
-        instance = self.instance
-        args = self.testsuite.extra_args[:]
+        if extra_conf_files:
+            args.append(f"CONF_FILE=\"{';'.join(extra_conf_files)}\"")
 
-        if instance.handler.ready:
-            args += instance.handler.args
+        if extra_dtc_overlay_files:
+            args.append(f"DTC_OVERLAY_FILE=\"{';'.join(extra_dtc_overlay_files)}\"")
 
         # merge overlay files into one variable
-        # overlays with prefixes won't be merged but pass to cmake as they are
-        def extract_overlays(args):
-            re_overlay = re.compile(r'^\s*OVERLAY_CONFIG=(.*)')
-            other_args = []
-            overlays = []
-            for arg in args:
-                match = re_overlay.search(arg)
-                if match:
-                    overlays.append(match.group(1).strip('\'"'))
-                else:
-                    other_args.append(arg)
+        overlays = extra_overlay_confs.copy()
 
-            args[:] = other_args
-            return overlays
-
-        overlays = extract_overlays(args)
-
-        if os.path.exists(os.path.join(instance.build_dir,
-                                       "twister", "testsuite_extra.conf")):
-            overlays.append(os.path.join(instance.build_dir,
-                                         "twister", "testsuite_extra.conf"))
+        additional_overlay_path = os.path.join(
+            build_dir, "twister", "testsuite_extra.conf"
+        )
+        if os.path.exists(additional_overlay_path):
+            overlays.append(additional_overlay_path)
 
         if overlays:
             args.append("OVERLAY_CONFIG=\"%s\"" % (" ".join(overlays)))
 
-        args_expanded = ["-D{}".format(a.replace('"', '\"')) for a in self.options.extra_args]
-        args_expanded = args_expanded + ["-D{}".format(a.replace('"', '')) for a in args]
-        res = self.run_cmake(args_expanded)
+        # Build the final argument list
+        args_expanded = ["-D{}".format(a.replace('"', '\"')) for a in cmake_extra_args]
+        args_expanded.extend(["-D{}".format(a.replace('"', '')) for a in args])
+
+        return args_expanded
+
+    def cmake(self, filter_stages=[]):
+        args = self.cmake_assemble_args(
+            self.testsuite.extra_args.copy(), # extra_args from YAML
+            self.instance.handler,
+            self.testsuite.extra_conf_files,
+            self.testsuite.extra_overlay_confs,
+            self.testsuite.extra_dtc_overlay_files,
+            self.options.extra_args, # CMake extra args
+            self.instance.build_dir,
+        )
+
+        res = self.run_cmake(args,filter_stages)
         return res
 
     def build(self):
@@ -911,7 +1042,6 @@ class ProjectBuilder(FilterBuilder):
                 instance.metrics["available_ram"] = 0
                 instance.metrics["unrecognized"] = []
             instance.metrics["handler_time"] = instance.execution_time
-
 
 class TwisterRunner:
 
@@ -1036,12 +1166,19 @@ class TwisterRunner:
                 logger.debug(f"adding {instance.name}")
                 if instance.status:
                     instance.retries += 1
-
                 instance.status = None
+
+                # Check if cmake package_helper script can be run in advance.
+                instance.filter_stages = []
+                if instance.testsuite.filter:
+                    instance.filter_stages = self.get_cmake_filter_stages(instance.testsuite.filter, expr_parser.reserved.keys())
                 if test_only and instance.run:
                     pipeline.put({"op": "run", "test": instance})
+                elif instance.filter_stages and "full" not in instance.filter_stages:
+                    pipeline.put({"op": "filter", "test": instance})
                 else:
                     pipeline.put({"op": "cmake", "test": instance})
+
 
     def pipeline_mgr(self, pipeline, done_queue, lock, results):
         if sys.platform == 'linux':
@@ -1093,3 +1230,38 @@ class TwisterRunner:
             logger.info("Execution interrupted")
             for p in processes:
                 p.terminate()
+
+    @staticmethod
+    def get_cmake_filter_stages(filt, logic_keys):
+        """ Analyze filter expressions from test yaml and decide if dts and/or kconfig based filtering will be needed."""
+        dts_required = False
+        kconfig_required = False
+        full_required = False
+        filter_stages = []
+
+        # Compress args in expressions like "function('x', 'y')" so they are not split when splitting by whitespaces
+        filt = filt.replace(", ", ",")
+        # Remove logic words
+        for k in logic_keys:
+            filt = filt.replace(f"{k} ", "")
+        # Remove brackets
+        filt = filt.replace("(", "")
+        filt = filt.replace(")", "")
+        # Splite by whitespaces
+        filt = filt.split()
+        for expression in filt:
+            if expression.startswith("dt_"):
+                dts_required = True
+            elif expression.startswith("CONFIG"):
+                kconfig_required = True
+            else:
+                full_required = True
+
+        if full_required:
+            return ["full"]
+        if dts_required:
+            filter_stages.append("dts")
+        if kconfig_required:
+            filter_stages.append("kconfig")
+
+        return filter_stages

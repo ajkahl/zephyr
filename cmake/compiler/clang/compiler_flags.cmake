@@ -20,6 +20,9 @@ set_property(TARGET compiler PROPERTY coverage --coverage -fno-inline)
 # clang flag for colourful diagnostic messages
 set_compiler_property(PROPERTY diagnostic -fcolor-diagnostics)
 
+# clang flag to save temporary object files
+set_compiler_property(PROPERTY save_temps -save-temps)
+
 #######################################################
 # This section covers flags related to warning levels #
 #######################################################
@@ -31,6 +34,7 @@ check_set_compiler_property(PROPERTY warning_base
                             -Wformat-security
                             -Wno-format-zero-length
                             -Wno-main
+                            -Wno-main-return-type
                             -Wno-unused-but-set-variable
                             -Wno-typedef-redefinition
                             -Wno-deprecated-non-prototype

@@ -143,6 +143,7 @@
 			compatible = "st,stm32-exti";
 			interrupt-controller;
 			#interrupt-cells = <1>;
+			#address-cells = <1>;
 			reg = <0x58000000 0x400>;
 			num-lines = <16>;
 			interrupts = <6 0>, <7 0>, <8 0>, <9 0>,
@@ -469,12 +470,24 @@
 
 			can1: can@4000a000 {
 				compatible = "st,stm32h7-fdcan";
-				#address-cells = <1>;
-				#size-cells = <0>;
 				reg = <0x4000a000 0x400>, <0x4000ac00 0x350>;
 				reg-names = "m_can", "message_ram";
 				clocks = <&rcc STM32_CLOCK_BUS_APB1_2 0x00000100>;
 				interrupts = <19 0>, <21 0>, <63 0>;
+				interrupt-names = "LINE_0", "LINE_1", "CALIB";
+				status = "disabled";
+				sjw = <1>;
+				sample-point = <875>;
+				sjw-data = <1>;
+				sample-point-data = <875>;
+			};
+
+			can2: can@4000a400 {
+				compatible = "st,stm32h7-fdcan";
+				reg = <0x4000a400 0x400>, <0x4000ac00 0x350>;
+				reg-names = "m_can", "message_ram";
+				clocks = <&rcc STM32_CLOCK_BUS_APB1_2 0x00000100>;
+				interrupts = <20 0>, <22 0>, <63 0>;
 				interrupt-names = "LINE_0", "LINE_1", "CALIB";
 				status = "disabled";
 				sjw = <1>;
@@ -516,6 +529,11 @@
 				status = "disabled";
 				#pwm-cells = <3>;
 			};
+
+			counter {
+				compatible = "st,stm32-counter";
+				status = "disabled";
+			};
 		};
 
 		timers3: timers@40000400 {
@@ -532,6 +550,11 @@
 				compatible = "st,stm32-pwm";
 				status = "disabled";
 				#pwm-cells = <3>;
+			};
+
+			counter {
+				compatible = "st,stm32-counter";
+				status = "disabled";
 			};
 		};
 
@@ -550,6 +573,11 @@
 				status = "disabled";
 				#pwm-cells = <3>;
 			};
+
+			counter {
+				compatible = "st,stm32-counter";
+				status = "disabled";
+			};
 		};
 
 		timers5: timers@40000c00 {
@@ -567,6 +595,11 @@
 				status = "disabled";
 				#pwm-cells = <3>;
 			};
+
+			counter {
+				compatible = "st,stm32-counter";
+				status = "disabled";
+			};
 		};
 
 		timers6: timers@40001000 {
@@ -578,6 +611,11 @@
 			interrupt-names = "global";
 			st,prescaler = <0>;
 			status = "disabled";
+
+			counter {
+				compatible = "st,stm32-counter";
+				status = "disabled";
+			};
 		};
 
 		timers7: timers@40001400 {
@@ -589,6 +627,11 @@
 			interrupt-names = "global";
 			st,prescaler = <0>;
 			status = "disabled";
+
+			counter {
+				compatible = "st,stm32-counter";
+				status = "disabled";
+			};
 		};
 
 		timers8: timers@40010400 {
@@ -623,6 +666,11 @@
 				status = "disabled";
 				#pwm-cells = <3>;
 			};
+
+			counter {
+				compatible = "st,stm32-counter";
+				status = "disabled";
+			};
 		};
 
 		timers13: timers@40001c00 {
@@ -639,6 +687,11 @@
 				compatible = "st,stm32-pwm";
 				status = "disabled";
 				#pwm-cells = <3>;
+			};
+
+			counter {
+				compatible = "st,stm32-counter";
+				status = "disabled";
 			};
 		};
 
@@ -657,6 +710,11 @@
 				status = "disabled";
 				#pwm-cells = <3>;
 			};
+
+			counter {
+				compatible = "st,stm32-counter";
+				status = "disabled";
+			};
 		};
 
 		timers15: timers@40014000 {
@@ -673,6 +731,11 @@
 				compatible = "st,stm32-pwm";
 				status = "disabled";
 				#pwm-cells = <3>;
+			};
+
+			counter {
+				compatible = "st,stm32-counter";
+				status = "disabled";
 			};
 		};
 
@@ -691,6 +754,11 @@
 				status = "disabled";
 				#pwm-cells = <3>;
 			};
+
+			counter {
+				compatible = "st,stm32-counter";
+				status = "disabled";
+			};
 		};
 
 		timers17: timers@40014800 {
@@ -707,6 +775,11 @@
 				compatible = "st,stm32-pwm";
 				status = "disabled";
 				#pwm-cells = <3>;
+			};
+
+			counter {
+				compatible = "st,stm32-counter";
+				status = "disabled";
 			};
 		};
 
@@ -792,6 +865,19 @@
 			status = "disabled";
 		};
 
+		bdma1: bdma@58025400 {
+			compatible = "st,stm32-bdma";
+			#dma-cells = <4>;
+			reg = <0x58025400 0x400>;
+			interrupts = <129 0>, <130 0>, <131 0>, <132 0>, <133 0>, <134 0>,
+						 <135 0>, <136 0>;
+			clocks = <&rcc STM32_CLOCK_BUS_AHB4 0x00200000>;
+			st,mem2mem;
+			dma-offset = <0>;
+			dma-requests = <8>;
+			status = "disabled";
+		};
+
 		dmamux1: dmamux@40020800 {
 			compatible = "st,stm32-dmamux";
 			#dma-cells = <3>;
@@ -800,6 +886,22 @@
 			/* dmamux1 has no dedicated clock, so we enable dma1 clock */
 			clocks = <&rcc STM32_CLOCK_BUS_AHB1 0x00000001>;
 			dma-channels = <16>;
+			dma-generators = <8>;
+			status = "disabled";
+			/*
+			 * dma-requests is different among h7 socs,
+			 * so we set in specific dtsi files
+			 */
+		};
+
+		dmamux2: dmamux@58025800 {
+			compatible = "st,stm32-dmamux";
+			#dma-cells = <3>;
+			reg = <0x58025800 0x400>;
+			interrupts = <128 0>;
+			/* dmamux2 has no dedicated clock, so we enable bdma clock */
+			clocks = <&rcc STM32_CLOCK_BUS_AHB4 0x00200000>;
+			dma-channels = <8>;
 			dma-generators = <8>;
 			status = "disabled";
 			/*
@@ -820,7 +922,7 @@
 			compatible = "st,stm32-sdmmc";
 			reg = <0x52007000 0x400>;
 			clocks = <&rcc STM32_CLOCK_BUS_AHB3 0x00010000>,
-				 <&rcc STM32_SRC_HSI48 SDMMC_SEL(0)>;
+				 <&rcc STM32_SRC_PLL1_Q SDMMC_SEL(0)>;
 			resets = <&rctl STM32_RESET(AHB3, 16U)>;
 			interrupts = <49 0>;
 			status = "disabled";
@@ -830,7 +932,7 @@
 			compatible = "st,stm32-sdmmc";
 			reg = <0x48022400 0x400>;
 			clocks = <&rcc STM32_CLOCK_BUS_AHB2 0x00000100>,
-				 <&rcc STM32_SRC_HSI48 SDMMC_SEL(0)>;
+				 <&rcc STM32_SRC_PLL1_Q SDMMC_SEL(0)>;
 			resets = <&rctl STM32_RESET(AHB2, 8U)>;
 			interrupts = <124 0>;
 			status = "disabled";

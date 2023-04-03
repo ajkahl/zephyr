@@ -202,6 +202,8 @@ static void set_sm_state(uint8_t sm_state)
 			client.retries = 0;
 			event = LWM2M_RD_CLIENT_EVENT_NETWORK_ERROR;
 		}
+	} else if (sm_state == ENGINE_UPDATE_REGISTRATION) {
+		event = LWM2M_RD_CLIENT_EVENT_REG_UPDATE;
 	}
 
 	client.engine_state = sm_state;
@@ -243,6 +245,16 @@ static bool sm_is_registered(void)
 	k_mutex_unlock(&client.mutex);
 	return registered;
 }
+
+static bool sm_is_suspended(void)
+{
+	k_mutex_lock(&client.mutex, K_FOREVER);
+	bool suspended = (client.engine_state == ENGINE_SUSPENDED);
+
+	k_mutex_unlock(&client.mutex);
+	return suspended;
+}
+
 
 static uint8_t get_sm_state(void)
 {
@@ -966,6 +978,7 @@ static void sm_handle_registration_update_failure(void)
 	k_mutex_lock(&client.mutex, K_FOREVER);
 	LOG_WRN("Registration Update fail -> trigger full registration");
 	client.engine_state = ENGINE_SEND_REGISTRATION;
+	lwm2m_engine_context_close(client.ctx);
 	k_mutex_unlock(&client.mutex);
 }
 
@@ -1009,6 +1022,8 @@ static int sm_do_registration(void)
 				lwm2m_engine_context_close(client.ctx);
 			}
 		}
+
+		client.last_update = 0;
 
 		client.ctx->bootstrap_mode = false;
 		ret = sm_select_security_inst(client.ctx->bootstrap_mode,
@@ -1511,6 +1526,15 @@ bool lwm2m_rd_client_is_registred(struct lwm2m_ctx *client_ctx)
 
 	return true;
 }
+bool lwm2m_rd_client_is_suspended(struct lwm2m_ctx *client_ctx)
+{
+	if (client.ctx != client_ctx || !sm_is_suspended()) {
+		return false;
+	}
+
+	return true;
+}
+
 
 int lwm2m_rd_client_init(void)
 {
